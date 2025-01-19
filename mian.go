@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"webok/internal/service"
 	"webok/internal/web"
 	"webok/internal/web/middleware"
+	"webok/pkg/ginx/middleware/ratelimit"
 )
 
 func main() {
@@ -43,6 +45,10 @@ func initServer() *gin.Engine {
 	}
 	useCors(server)
 	useJWT(server)
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: config.Config.Redis.Addr,
+	})
+	useRateLimit(server, redisClient)
 	return server
 }
 
@@ -77,4 +83,10 @@ func useCors(server *gin.Engine) {
 	}
 	corsConfig.MaxAge = 12 * time.Hour
 	server.Use(cors.New(corsConfig))
+}
+
+func useRateLimit(server *gin.Engine, redisClient *redis.Client) {
+
+	server.Use(ratelimit.NewBuilder(redisClient,
+		time.Second*10, 1).Build())
 }
