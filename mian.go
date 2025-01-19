@@ -9,6 +9,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"strings"
 	"time"
 	"webok/config"
 	"webok/internal/repository"
@@ -45,8 +46,16 @@ func initServer() *gin.Engine {
 	// 设置跨域请求
 	corsConfig := cors.DefaultConfig()
 	corsConfig.AllowCredentials = true
-	corsConfig.AllowHeaders = []string{"Content-Length"}
-	corsConfig.AllowOrigins = []string{"http://localhost", "http://127.0.0.1"}
+	corsConfig.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}
+	corsConfig.AllowOriginFunc = func(origin string) bool {
+		if strings.HasPrefix(origin, "http://localhost") {
+			return true
+		}
+		if strings.HasPrefix(origin, "http://127.0.0.1") {
+			return true
+		}
+		return false
+	}
 	corsConfig.MaxAge = 12 * time.Hour
 	server.Use(cors.New(corsConfig))
 
