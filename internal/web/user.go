@@ -5,6 +5,7 @@ import (
 	regexp "github.com/dlclark/regexp2"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"log"
 	"net/http"
 	"time"
@@ -18,6 +19,13 @@ const (
 	// 和上面比起来，用 ` 看起来就比较清爽
 	passwordRegexPattern = `^(?=.*[A-Za-z])(?=.*\d)(?=.*[$@$!%*#?&])[A-Za-z\d$@$!%*#?&]{8,}$`
 )
+
+var JWTKey = []byte("k6CswdUm77WKcbM68UQUuxVsHSpTCwgK")
+
+type UserClaims struct {
+	jwt.RegisteredClaims
+	Uid int64
+}
 
 type UserHandler struct {
 	emailRexExp    *regexp.Regexp
@@ -36,7 +44,7 @@ func NewUserHandler(svc *service.UserService) *UserHandler {
 func (h *UserHandler) RegisterRoutes(server *gin.Engine) {
 	ug := server.Group("/users")
 	ug.POST("/signup", h.signUp)
-	ug.POST("/login", h.login)
+	ug.POST("/login", h.LoginJWT)
 	ug.POST("/edit", h.edit)
 	ug.GET("/profile", h.profile)
 }
@@ -87,6 +95,38 @@ func (h *UserHandler) signUp(ctx *gin.Context) {
 	}
 }
 
+func (h *UserHandler) LoginJWT(ctx *gin.Context) {
+	type Req struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	var req Req
+	if err := ctx.Bind(&req); err != nil {
+		return
+	}
+	u, err := h.svc.Login(ctx, req.Email, req.Password)
+	switch err {
+	case nil:
+		uc := UserClaims{
+			Uid: u.Id,
+			RegisteredClaims: jwt.RegisteredClaims{
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute)),
+			},
+		}
+		token := jwt.NewWithClaims(jwt.SigningMethodHS512, uc)
+		tokenStr, err := token.SignedString(JWTKey)
+		if err != nil {
+			ctx.String(http.StatusOK, "系统错误")
+		}
+		ctx.Header("x-jwt-token", tokenStr)
+		ctx.String(http.StatusOK, "登录成功")
+	case service.ErrInvalidUserOrPassword:
+		ctx.String(http.StatusOK, "用户名或者密码不对")
+	default:
+		ctx.String(http.StatusOK, "系统错误")
+	}
+}
+
 func (h *UserHandler) login(ctx *gin.Context) {
 	type Req struct {
 		Email    string `json:"email"`
@@ -122,7 +162,7 @@ func (h *UserHandler) edit(ctx *gin.Context) {
 	type editReq struct {
 		NickName string `json:"nickname"`
 		BirthDay string `json:"birthday"`
-		Brief    string `json:"brief"`
+		Brief    string `json:"aboutMe"`
 	}
 	req := editReq{}
 	if err := ctx.Bind(&req); err != nil {
@@ -146,17 +186,8 @@ func (h *UserHandler) edit(ctx *gin.Context) {
 		ctx.String(http.StatusOK, "简介的长度在0-256之间")
 		return
 	}
-	sess := sessions.Default(ctx)
-	userId := sess.Get("userId")
-	if userId == nil {
-		ctx.AbortWithStatus(http.StatusUnauthorized)
-		return
-	}
-	id, ok := userId.(int64)
-	if !ok {
-		ctx.AbortWithStatus(http.StatusUnauthorized)
-		return
-	}
+	uc := ctx.MustGet("user").(UserClaims)
+	id := uc.Uid
 	err = h.svc.ModifyNoSensitiveInfo(ctx, &domain.User{Id: id, Nickname: req.NickName, Brief: req.Brief, Birthday: t.UnixMilli()})
 	if err != nil {
 		ctx.String(http.StatusOK, err.Error())
@@ -166,17 +197,9 @@ func (h *UserHandler) edit(ctx *gin.Context) {
 }
 
 func (h *UserHandler) profile(ctx *gin.Context) {
-	sess := sessions.Default(ctx)
-	userId := sess.Get("userId")
-	if userId == nil {
-		ctx.AbortWithStatus(http.StatusUnauthorized)
-		return
-	}
-	id, ok := userId.(int64)
-	if !ok {
-		ctx.AbortWithStatus(http.StatusUnauthorized)
-		return
-	}
+	us := ctx.MustGet("user").(UserClaims)
+
+	id := us.Uid
 	u, err := h.svc.Profile(ctx, &domain.User{Id: id})
 
 	if err != nil {
@@ -185,14 +208,17 @@ func (h *UserHandler) profile(ctx *gin.Context) {
 	}
 
 	type UserInfo struct {
-		NickName string `json:"nickname"`
-		BirthDay int64  `json:"birthday"`
-		Brief    string `json:"brief"`
+		NickName string `json:"Nickname"`
+		BirthDay int64  `json:"Birthday"`
+		Phone    string `json:"Phone"`
+		Email    string `json:"Email"`
+		AboutMe  string `json:"AboutMe"`
 	}
 
 	ctx.JSONP(http.StatusOK, UserInfo{
 		NickName: u.Nickname,
 		BirthDay: u.Birthday,
-		Brief:    u.Brief,
+		AboutMe:  u.Brief,
+		Email:    u.Email,
 	})
 }
