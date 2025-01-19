@@ -1,13 +1,16 @@
 package main
 
 import (
+	"fmt"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"time"
+	"webok/config"
 	"webok/internal/repository"
 	"webok/internal/repository/dao"
 	"webok/internal/service"
@@ -21,13 +24,12 @@ func main() {
 	initUserHdl(db, server)
 	err := server.Run(":8081")
 	if err != nil {
-		return
+		panic("start server failed")
 	}
 }
 
 func initDB() *gorm.DB {
-	dsn := "host=localhost user=postgres password=postgres dbname=webook port=15432 sslmode=disable TimeZone=Asia/Shanghai"
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(config.Config.DB.DSN), &gorm.Config{})
 	if err != nil {
 		panic("data init failed")
 	}
@@ -56,6 +58,11 @@ func initServer() *gin.Engine {
 	loginMidl := middleware.LoginMiddlewareBuilder{}
 	server.Use(loginMidl.CheckLogin())
 
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: config.Config.Redis.Addr,
+	})
+
+	fmt.Println(redisClient)
 	return server
 }
 
