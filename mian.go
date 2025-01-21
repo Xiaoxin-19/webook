@@ -45,10 +45,10 @@ func initServer() *gin.Engine {
 	}
 	useCors(server)
 	useJWT(server)
-	redisClient := redis.NewClient(&redis.Options{
-		Addr: config.Config.Redis.Addr,
-	})
-	useRateLimit(server, redisClient)
+	//redisClient := redis.NewClient(&redis.Options{
+	//	Addr: config.Config.Redis.Addr,
+	//})
+	////useRateLimit(server, redisClient)
 	return server
 }
 
