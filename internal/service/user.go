@@ -15,11 +15,19 @@ var (
 	ErrRecordNotFound        = repository.ErrRecordNotFound
 )
 
-type UserService struct {
-	repo *repository.UserRepository
+type UserService interface {
+	SignUp(ctx context.Context, u *domain.User) error
+	Login(ctx *gin.Context, email string, password string) (*domain.User, error)
+	ModifyNoSensitiveInfo(ctx context.Context, u *domain.User) error
+	Profile(ctx *gin.Context, d *domain.User) (*domain.User, error)
+	FindOrCreate(ctx context.Context, phone string) (*domain.User, error)
 }
 
-func (us *UserService) SignUp(ctx context.Context, u *domain.User) error {
+type NormalUserService struct {
+	repo repository.UserRepository
+}
+
+func (us *NormalUserService) SignUp(ctx context.Context, u *domain.User) error {
 	hash, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return err
@@ -28,7 +36,7 @@ func (us *UserService) SignUp(ctx context.Context, u *domain.User) error {
 	return us.repo.Create(ctx, u)
 }
 
-func (us *UserService) Login(ctx *gin.Context, email string, password string) (*domain.User, error) {
+func (us *NormalUserService) Login(ctx *gin.Context, email string, password string) (*domain.User, error) {
 	u, err := us.repo.FindByEmail(ctx, email)
 	if errors.Is(err, repository.ErrRecordNotFound) {
 		return nil, ErrInvalidUserOrPassword
@@ -43,7 +51,7 @@ func (us *UserService) Login(ctx *gin.Context, email string, password string) (*
 	return u, nil
 }
 
-func (us *UserService) ModifyNoSensitiveInfo(ctx context.Context, u *domain.User) error {
+func (us *NormalUserService) ModifyNoSensitiveInfo(ctx context.Context, u *domain.User) error {
 
 	err := us.repo.UpdateById(ctx, u)
 	if err != nil {
@@ -52,7 +60,7 @@ func (us *UserService) ModifyNoSensitiveInfo(ctx context.Context, u *domain.User
 	return nil
 }
 
-func (us *UserService) Profile(ctx *gin.Context, d *domain.User) (*domain.User, error) {
+func (us *NormalUserService) Profile(ctx *gin.Context, d *domain.User) (*domain.User, error) {
 	u, err := us.repo.FindById(ctx, d.Id)
 	if errors.Is(err, repository.ErrRecordNotFound) {
 		return nil, ErrInvalidUserOrPassword
@@ -60,7 +68,7 @@ func (us *UserService) Profile(ctx *gin.Context, d *domain.User) (*domain.User, 
 	return u, nil
 }
 
-func (us *UserService) FindOrCreate(ctx context.Context, phone string) (*domain.User, error) {
+func (us *NormalUserService) FindOrCreate(ctx context.Context, phone string) (*domain.User, error) {
 	u, err := us.repo.FindByPhone(ctx, phone)
 	if !errors.Is(err, repository.ErrRecordNotFound) {
 		return u, err
@@ -74,6 +82,6 @@ func (us *UserService) FindOrCreate(ctx context.Context, phone string) (*domain.
 	return us.repo.FindByPhone(ctx, phone)
 }
 
-func NewUserService(repo *repository.UserRepository) *UserService {
-	return &UserService{repo: repo}
+func NewNormalUserService(repo repository.UserRepository) UserService {
+	return &NormalUserService{repo: repo}
 }
