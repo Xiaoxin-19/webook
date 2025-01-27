@@ -13,6 +13,7 @@ end
 
 if code == expectedCode then
     redis.call("set", cntKey, 0)
+    redis.call("expire", cntKey, 240)
     return 0
 else
     redis.call("decr", cntKey)

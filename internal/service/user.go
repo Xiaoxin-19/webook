@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	ErrDuplicateEmail        = repository.ErrDuplicateEmail
+	ErrDuplicate             = repository.ErrDuplicate
 	ErrInvalidUserOrPassword = errors.New("用户不存在或者密码不对")
 	ErrRecordNotFound        = repository.ErrRecordNotFound
 )
@@ -53,11 +53,25 @@ func (us *UserService) ModifyNoSensitiveInfo(ctx context.Context, u *domain.User
 }
 
 func (us *UserService) Profile(ctx *gin.Context, d *domain.User) (*domain.User, error) {
-	u, err := us.repo.FindById(ctx, int64(d.Id))
+	u, err := us.repo.FindById(ctx, d.Id)
 	if errors.Is(err, repository.ErrRecordNotFound) {
 		return nil, ErrInvalidUserOrPassword
 	}
 	return u, nil
+}
+
+func (us *UserService) FindOrCreate(ctx context.Context, phone string) (*domain.User, error) {
+	u, err := us.repo.FindByPhone(ctx, phone)
+	if !errors.Is(err, repository.ErrRecordNotFound) {
+		return u, err
+	}
+
+	err = us.repo.Create(ctx, &domain.User{Phone: phone})
+	if err != nil && !errors.Is(err, ErrDuplicate) {
+		return nil, err
+	}
+	// 如果有主从，则强制走主库，避免同步造成的读取失败
+	return us.repo.FindByPhone(ctx, phone)
 }
 
 func NewUserService(repo *repository.UserRepository) *UserService {

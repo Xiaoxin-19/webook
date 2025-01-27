@@ -2,6 +2,7 @@ package dao
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -24,12 +25,13 @@ func NewUserDAO(db *gorm.DB) *UserDAO {
 }
 
 type User struct {
-	Id       int64  `gorm:"primaryKey,autoIncrement"`
-	Email    string `gorm:"unique"`
+	Id       int64          `gorm:"primaryKey,autoIncrement"`
+	Email    sql.NullString `gorm:"unique"`
+	Phone    sql.NullString `gorm:"unique"`
 	Password string
 	Nickname string `gorm:"type=varchar(34)"`
 	Birthday int64
-	Brief    string `gorm:"type=varchar(1024)"`
+	AboutMe  string `gorm:"type=varchar(1024)"`
 	// 创建时间, 时区，UTC 0 的毫秒数
 	Ctime int64
 	// 更新时间
@@ -68,8 +70,14 @@ func (dao *UserDAO) UpdateById(ctx context.Context, u *User) error {
 	return nil
 }
 
-func (dao *UserDAO) FindById(ctx *gin.Context, id int64) (*User, error) {
+func (dao *UserDAO) FindById(ctx context.Context, id int64) (*User, error) {
 	u := new(User)
 	err := dao.db.WithContext(ctx).Where("id=?", id).First(u).Error
 	return u, err
+}
+
+func (dao *UserDAO) FindByPhone(ctx context.Context, phone string) (*User, error) {
+	var u User
+	err := dao.db.WithContext(ctx).Where("phone=?", phone).First(&u).Error
+	return &u, err
 }

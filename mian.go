@@ -10,8 +10,10 @@ import (
 	"time"
 	"webok/config"
 	"webok/internal/repository"
+	"webok/internal/repository/cache"
 	"webok/internal/repository/dao"
 	"webok/internal/service"
+	"webok/internal/service/sms/localsms"
 	"webok/internal/web"
 	"webok/internal/web/middleware"
 	"webok/pkg/ginx/middleware/ratelimit"
@@ -20,13 +22,22 @@ import (
 func main() {
 	db := initDB()
 	server := initServer()
-	initUserHdl(db, server)
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: config.Config.Redis.Addr,
+	})
+	codeSvc := initCodeSvc(redisClient)
+	initUserHdl(db, redisClient, codeSvc, server)
+
 	err := server.Run(":8081")
 	if err != nil {
 		panic("start server failed")
 	}
 }
-
+func initCodeSvc(redisClient redis.Cmdable) *service.CodeService {
+	cc := cache.NewCodeCache(redisClient)
+	cacheRepo := repository.NewCodeRepository(cc)
+	return service.NewCodeService(cacheRepo, localsms.NewLocalSmsService())
+}
 func initDB() *gorm.DB {
 	db, err := gorm.Open(postgres.Open(config.Config.DB.DSN), &gorm.Config{})
 	if err != nil {
@@ -52,12 +63,14 @@ func initServer() *gin.Engine {
 	return server
 }
 
-func initUserHdl(db *gorm.DB, server *gin.Engine) {
+func initUserHdl(db *gorm.DB, redisClient redis.Cmdable,
+	codeSvc *service.CodeService, server *gin.Engine) {
 	ud := dao.NewUserDAO(db)
-	ur := repository.NewUserRepository(ud)
+	uc := cache.NewUserCache(redisClient)
+	ur := repository.NewUserRepository(ud, uc)
 	us := service.NewUserService(ur)
-	uh := web.NewUserHandler(us)
-	uh.RegisterRoutes(server)
+	hdl := web.NewUserHandler(us, codeSvc)
+	hdl.RegisterRoutes(server)
 }
 
 func useJWT(server *gin.Engine) {
@@ -86,7 +99,6 @@ func useCors(server *gin.Engine) {
 }
 
 func useRateLimit(server *gin.Engine, redisClient *redis.Client) {
-
 	server.Use(ratelimit.NewBuilder(redisClient,
 		time.Second*10, 1).Build())
 }

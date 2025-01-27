@@ -28,6 +28,7 @@ func NewCodeCache(cmd redis.Cmdable) *CodeCache {
 	}
 }
 
+// Set 会返回ErrCodeSendTooMany错误
 func (c *CodeCache) Set(ctx context.Context, biz, phone, code string) error {
 	res, err := c.cmd.Eval(ctx, luaSetCode, []string{c.key(biz, phone)}, code).Int()
 	if err != nil {

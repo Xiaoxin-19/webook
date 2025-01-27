@@ -9,8 +9,10 @@ import (
 	"webok/internal/service/sms"
 )
 
+var ErrCodeSendTooMany = repository.ErrCodeVerifyTooMany
+
 type CodeService struct {
-	repo repository.CodeRepository
+	repo *repository.CodeRepository
 	sms  sms.Service
 }
 
@@ -40,4 +42,11 @@ func (svc *CodeService) generate() string {
 	// 0-999999
 	code := rand.Intn(1000000)
 	return fmt.Sprintf("%06d", code)
+}
+
+func NewCodeService(repo *repository.CodeRepository, smsSvc sms.Service) *CodeService {
+	return &CodeService{
+		repo: repo,
+		sms:  smsSvc,
+	}
 }
