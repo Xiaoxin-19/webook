@@ -16,6 +16,7 @@ import (
 	"webok/internal/service/sms/localsms"
 	"webok/internal/web"
 	"webok/internal/web/middleware"
+	localMemCache "webok/pkg"
 	"webok/pkg/ginx/middleware/ratelimit"
 )
 
@@ -25,7 +26,9 @@ func main() {
 	redisClient := redis.NewClient(&redis.Options{
 		Addr: config.Config.Redis.Addr,
 	})
-	codeSvc := initCodeSvc(redisClient)
+	//codeSvc := initCodeSvc(redisClient)
+	localCache := localMemCache.NewLocalMemCache(10 * time.Minute)
+	codeSvc := initCodeSvc(localCache)
 	initUserHdl(db, redisClient, codeSvc, server)
 
 	err := server.Run(":8081")
@@ -33,8 +36,14 @@ func main() {
 		panic("start server failed")
 	}
 }
-func initCodeSvc(redisClient redis.Cmdable) *service.CodeService {
-	cc := cache.NewCodeCache(redisClient)
+
+//	func initCodeSvc(redisClient redis.Cmdable) *service.CodeService {
+//		cc := cache.NewCodeRedisCache(redisClient)
+//		cacheRepo := repository.NewCodeRepository(cc)
+//		return service.NewCodeService(cacheRepo, localsms.NewLocalSmsService())
+//	}
+func initCodeSvc(memCache *localMemCache.LocalMemCache) *service.CodeService {
+	cc := cache.NewCodeLocalMemCache(memCache)
 	cacheRepo := repository.NewCodeRepository(cc)
 	return service.NewCodeService(cacheRepo, localsms.NewLocalSmsService())
 }
