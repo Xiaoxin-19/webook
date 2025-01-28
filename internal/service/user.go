@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 	"webok/internal/domain"
 	"webok/internal/repository"
@@ -15,11 +14,12 @@ var (
 	ErrRecordNotFound        = repository.ErrRecordNotFound
 )
 
+//go:generate mockgen -source=user.go -package=svcmocks -destination=./mock/user.mock.go
 type UserService interface {
 	SignUp(ctx context.Context, u *domain.User) error
-	Login(ctx *gin.Context, email string, password string) (*domain.User, error)
+	Login(ctx context.Context, email string, password string) (*domain.User, error)
 	ModifyNoSensitiveInfo(ctx context.Context, u *domain.User) error
-	Profile(ctx *gin.Context, d *domain.User) (*domain.User, error)
+	Profile(ctx context.Context, d *domain.User) (*domain.User, error)
 	FindOrCreate(ctx context.Context, phone string) (*domain.User, error)
 }
 
@@ -36,7 +36,7 @@ func (us *NormalUserService) SignUp(ctx context.Context, u *domain.User) error {
 	return us.repo.Create(ctx, u)
 }
 
-func (us *NormalUserService) Login(ctx *gin.Context, email string, password string) (*domain.User, error) {
+func (us *NormalUserService) Login(ctx context.Context, email string, password string) (*domain.User, error) {
 	u, err := us.repo.FindByEmail(ctx, email)
 	if errors.Is(err, repository.ErrRecordNotFound) {
 		return nil, ErrInvalidUserOrPassword
@@ -60,7 +60,7 @@ func (us *NormalUserService) ModifyNoSensitiveInfo(ctx context.Context, u *domai
 	return nil
 }
 
-func (us *NormalUserService) Profile(ctx *gin.Context, d *domain.User) (*domain.User, error) {
+func (us *NormalUserService) Profile(ctx context.Context, d *domain.User) (*domain.User, error) {
 	u, err := us.repo.FindById(ctx, d.Id)
 	if errors.Is(err, repository.ErrRecordNotFound) {
 		return nil, ErrInvalidUserOrPassword

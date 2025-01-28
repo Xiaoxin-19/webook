@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"github.com/gin-gonic/gin"
 	"log"
 	"time"
 	"webok/internal/domain"
@@ -17,11 +16,12 @@ var (
 	ErrRecordNotFound = dao.ErrRecordNotFound
 )
 
+//go:generate mockgen -source=user.go -package=repomocks -destination=./mock/user.mock.go
 type UserRepository interface {
 	Create(ctx context.Context, u *domain.User) error
 	UpdateById(ctx context.Context, u *domain.User) error
-	FindByEmail(ctx *gin.Context, email string) (*domain.User, error)
-	FindById(ctx *gin.Context, id int64) (*domain.User, error)
+	FindByEmail(ctx context.Context, email string) (*domain.User, error)
+	FindById(ctx context.Context, id int64) (*domain.User, error)
 	FindByPhone(ctx context.Context, phone string) (*domain.User, error)
 }
 
@@ -34,7 +34,7 @@ func (ur *CachedUserRepository) Create(ctx context.Context, u *domain.User) erro
 	return ur.dao.Insert(ctx, ur.toEntity(u))
 }
 
-func (ur *CachedUserRepository) FindByEmail(ctx *gin.Context, email string) (*domain.User, error) {
+func (ur *CachedUserRepository) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
 	u, err := ur.dao.FindByEmail(ctx, email)
 	if err != nil {
 		return nil, err
@@ -42,7 +42,7 @@ func (ur *CachedUserRepository) FindByEmail(ctx *gin.Context, email string) (*do
 	return ur.toDomain(u), nil
 }
 
-func (ur *CachedUserRepository) FindById(ctx *gin.Context, id int64) (*domain.User, error) {
+func (ur *CachedUserRepository) FindById(ctx context.Context, id int64) (*domain.User, error) {
 	du, err := ur.cache.Get(ctx, id)
 	// 只要 err 为 nil，就返回
 	switch {
@@ -88,6 +88,7 @@ func (ur *CachedUserRepository) toDomain(u *dao.User) *domain.User {
 		Nickname: u.Nickname,
 		Birthday: time.UnixMilli(u.Birthday),
 		AboutMe:  u.AboutMe,
+		Ctime:    time.UnixMilli(u.Ctime),
 	}
 }
 

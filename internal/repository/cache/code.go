@@ -12,6 +12,7 @@ import (
 	localMemCache "webok/pkg"
 )
 
+//go:generate mockgen -source=code.go -package=cachemocks -destination=./mock/code.mock.go
 var (
 	//go:embed lua/set_code.lua
 	luaSetCode string
@@ -22,6 +23,7 @@ var (
 	ErrCodeVerifyTooMany = errors.New("验证太频繁")
 )
 
+//go:generate mockgen  -package=redismocks -destination=./redismock/cmd.mock.go github.com/redis/go-redis/v9 Cmdable
 type CodeCache interface {
 	Set(ctx context.Context, biz, phone, code string) error
 	Verify(ctx context.Context, biz, phone, code string) (bool, error)

@@ -43,4 +43,10 @@ build:
 	@echo "Building Go binary..."
 	@$(BUILD_CMD)
 
+mock:
+	@go generate ./...
+
+.PHONY: mock
+
+
 

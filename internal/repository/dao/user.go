@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 	"log"
@@ -16,8 +15,9 @@ var (
 	ErrRecordNotFound = gorm.ErrRecordNotFound
 )
 
+//go:generate mockgen -source=user.go -package=daomocks -destination=./mock/user.mock.go
 type UserDAO interface {
-	FindByEmail(ctx *gin.Context, email string) (*User, error)
+	FindByEmail(ctx context.Context, email string) (*User, error)
 	Insert(ctx context.Context, user *User) error
 	UpdateById(ctx context.Context, u *User) error
 	FindById(ctx context.Context, id int64) (*User, error)
@@ -46,7 +46,7 @@ type User struct {
 	Utime int64
 }
 
-func (dao *GORMUserDAO) FindByEmail(ctx *gin.Context, email string) (*User, error) {
+func (dao *GORMUserDAO) FindByEmail(ctx context.Context, email string) (*User, error) {
 	u := new(User)
 	err := dao.db.WithContext(ctx).Where("email=?", email).First(u).Error
 	return u, err
