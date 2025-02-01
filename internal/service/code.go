@@ -9,7 +9,7 @@ import (
 	"webok/internal/service/sms"
 )
 
-var ErrCodeSendTooMany = repository.ErrCodeVerifyTooMany
+var ErrCodeSendTooMany = repository.ErrCodeSendTooMany
 
 //go:generate mockgen -source=code.go -package=svcmocks -destination=./mock/code.mock.go
 type CodeService interface {

@@ -21,6 +21,7 @@ var (
 
 	ErrCodeSendTooMany   = errors.New("发送太频繁")
 	ErrCodeVerifyTooMany = errors.New("验证太频繁")
+	ErrCodeNoExpireTime  = errors.New("验证码存在，但是没有过期时间")
 )
 
 //go:generate mockgen  -package=redismocks -destination=./redismock/cmd.mock.go github.com/redis/go-redis/v9 Cmdable
@@ -48,7 +49,7 @@ func (c *CodeRedisCache) Set(ctx context.Context, biz, phone, code string) error
 	}
 	switch res {
 	case -2:
-		return errors.New("验证码存在，但是没有过期时间")
+		return ErrCodeNoExpireTime
 	case -1:
 		return ErrCodeSendTooMany
 	default:
