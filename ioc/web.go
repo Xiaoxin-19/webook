@@ -9,6 +9,7 @@ import (
 	"webok/internal/web"
 	"webok/internal/web/middleware"
 	"webok/pkg/ginx/middleware/ratelimit"
+	"webok/pkg/limiter"
 )
 
 func InitWebServer(mdls []gin.HandlerFunc, userHdl *web.UserHandler) *gin.Engine {
@@ -47,7 +48,7 @@ func useCors() gin.HandlerFunc {
 }
 
 func useRateLimit(redisClient redis.Cmdable) gin.HandlerFunc {
-	return ratelimit.NewBuilder(redisClient, time.Second, 100).Build()
+	return ratelimit.NewBuilder(limiter.NewRedisSlidingWindowLimiter(redisClient, time.Second, 1000)).Build()
 }
 
 func useJWT() gin.HandlerFunc {

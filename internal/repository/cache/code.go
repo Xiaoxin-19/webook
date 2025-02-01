@@ -92,13 +92,13 @@ type codeItem struct {
 	cnt int
 }
 
-func (c *CodeLocalMemCache) Set(ctx context.Context, biz, phone, code string) error {
+func (c *CodeLocalMemCache) Set(_ context.Context, biz, phone, code string) error {
 	c.Lock()
 	defer c.Unlock()
-	ckey := key(biz, phone)
-	res, ok := c.cache.Get(ckey)
+	cKey := key(biz, phone)
+	res, ok := c.cache.Get(cKey)
 	if !ok {
-		err := c.cache.Add(ckey, codeItem{
+		err := c.cache.Add(cKey, codeItem{
 			code: code,
 			cnt:  3,
 		}, time.Minute*10)
@@ -114,18 +114,18 @@ func (c *CodeLocalMemCache) Set(ctx context.Context, biz, phone, code string) er
 	}
 
 	//满足发送间隔，发送
-	return c.cache.Add(ckey, codeItem{
+	return c.cache.Add(cKey, codeItem{
 		code: code,
 		cnt:  3,
 	}, time.Minute*10)
 }
 
-func (c *CodeLocalMemCache) Verify(ctx context.Context, biz, phone, code string) (bool, error) {
+func (c *CodeLocalMemCache) Verify(_ context.Context, biz, phone, code string) (bool, error) {
 	c.Lock()
 	defer c.Unlock()
 
-	ckey := key(biz, phone)
-	res, ok := c.cache.Get(ckey)
+	cKey := key(biz, phone)
+	res, ok := c.cache.Get(cKey)
 	if !ok || res.Expire.Sub(time.Now()) > time.Minute*10 {
 		return false, nil
 	}
@@ -140,12 +140,12 @@ func (c *CodeLocalMemCache) Verify(ctx context.Context, biz, phone, code string)
 
 	if item.code != code {
 		item.cnt--
-		err := c.cache.Update(ckey, item)
+		err := c.cache.Update(cKey, item)
 		if err != nil {
 			return false, err
 		}
 		return false, nil
 	}
-	c.cache.Del(ckey)
+	c.cache.Del(cKey)
 	return true, nil
 }
