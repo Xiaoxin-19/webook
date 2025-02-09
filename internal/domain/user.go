@@ -8,7 +8,8 @@ type User struct {
 	Phone    string
 	Password string
 	//昵称
-	Nickname string
+	Nickname   string
+	WechatInfo WechatInfo
 	//生日
 	Birthday time.Time
 	//个人简介

@@ -21,6 +21,7 @@ type UserService interface {
 	ModifyNoSensitiveInfo(ctx context.Context, u *domain.User) error
 	Profile(ctx context.Context, d *domain.User) (*domain.User, error)
 	FindOrCreate(ctx context.Context, phone string) (*domain.User, error)
+	FindOrCreateByWechat(ctx context.Context, wechatInfo domain.WechatInfo) (domain.User, error)
 }
 
 type NormalUserService struct {
@@ -80,6 +81,19 @@ func (us *NormalUserService) FindOrCreate(ctx context.Context, phone string) (*d
 	}
 	// 如果有主从，则强制走主库，避免同步造成的读取失败
 	return us.repo.FindByPhone(ctx, phone)
+}
+
+func (us *NormalUserService) FindOrCreateByWechat(ctx context.Context, wechatInfo domain.WechatInfo) (domain.User, error) {
+	u, err := us.repo.FindByWechat(ctx, wechatInfo.OpenId)
+	if !errors.Is(err, repository.ErrRecordNotFound) {
+		return u, err
+	}
+
+	err = us.repo.Create(ctx, &domain.User{WechatInfo: wechatInfo})
+	if err != nil && !errors.Is(err, ErrDuplicate) {
+		return domain.User{}, err
+	}
+	return us.repo.FindByWechat(ctx, wechatInfo.OpenId)
 }
 
 func NewNormalUserService(repo repository.UserRepository) UserService {
