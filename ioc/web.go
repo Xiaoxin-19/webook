@@ -34,7 +34,7 @@ func useCors() gin.HandlerFunc {
 	corsConfig.AllowCredentials = true
 	corsConfig.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}
 	// 这个是允许前端访问你的后端响应中带的头部
-	corsConfig.ExposeHeaders = []string{"x-jwt-token"}
+	corsConfig.ExposeHeaders = []string{"x-jwt-token", "x-refresh-token"}
 	corsConfig.AllowOriginFunc = func(origin string) bool {
 		if strings.HasPrefix(origin, "http://localhost") {
 			return true

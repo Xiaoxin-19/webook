@@ -11,7 +11,7 @@ import (
 )
 
 type OAuth2WechatHandler struct {
-	jwtHandler
+	JwtHandler
 	svc             wechat.Service
 	userSvc         service.UserService
 	key             []byte
@@ -84,7 +84,7 @@ func (o *OAuth2WechatHandler) Callback(ctx *gin.Context) {
 		})
 		return
 	}
-	o.setJwtToken(ctx, u.Id)
+	o.SetAccessToken(ctx, u.Id)
 	ctx.JSON(http.StatusOK, Result{
 		Msg: "OK",
 	})
