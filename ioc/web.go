@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 	"webok/internal/web"
+	ijwt "webok/internal/web/jwt"
 	"webok/internal/web/middleware"
 	"webok/pkg/ginx/middleware/ratelimit"
 	"webok/pkg/limiter"
@@ -20,10 +21,10 @@ func InitWebServer(mdls []gin.HandlerFunc, userHdl *web.UserHandler, wechatHandl
 	return server
 }
 
-func InitGinMiddlewares(client redis.Cmdable) []gin.HandlerFunc {
+func InitGinMiddlewares(client redis.Cmdable, jwt ijwt.Handler) []gin.HandlerFunc {
 	return []gin.HandlerFunc{
 		useCors(),
-		useJWT(),
+		useJWT(jwt),
 		useRateLimit(client),
 	}
 }
@@ -52,7 +53,9 @@ func useRateLimit(redisClient redis.Cmdable) gin.HandlerFunc {
 	return ratelimit.NewBuilder(limiter.NewRedisSlidingWindowLimiter(redisClient, time.Second, 1000)).Build()
 }
 
-func useJWT() gin.HandlerFunc {
-	login := middleware.LoginJWTMiddlewareBuilder{}
+func useJWT(jwt ijwt.Handler) gin.HandlerFunc {
+	login := middleware.LoginJWTMiddlewareBuilder{
+		Handler: jwt,
+	}
 	return login.CheckLogin()
 }

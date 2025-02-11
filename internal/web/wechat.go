@@ -4,26 +4,29 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	longUUID "github.com/google/uuid"
 	uuid "github.com/lithammer/shortuuid/v4"
 	"net/http"
 	"webok/internal/service"
 	"webok/internal/service/outh2/wechat"
+	ijwt "webok/internal/web/jwt"
 )
 
 type OAuth2WechatHandler struct {
-	JwtHandler
+	ijwt.Handler
 	svc             wechat.Service
 	userSvc         service.UserService
 	key             []byte
 	stateCookieName string
 }
 
-func NewOAuth2WechatHandler(svc wechat.Service, userSvc service.UserService) *OAuth2WechatHandler {
+func NewOAuth2WechatHandler(svc wechat.Service, userSvc service.UserService, jwt ijwt.Handler) *OAuth2WechatHandler {
 	return &OAuth2WechatHandler{
 		svc:             svc,
 		userSvc:         userSvc,
 		key:             []byte("k6CswdUm77WKcbM68UQUuxVsHSpTCwgB"),
 		stateCookieName: "jwt-state",
+		Handler:         jwt,
 	}
 }
 
@@ -84,7 +87,9 @@ func (o *OAuth2WechatHandler) Callback(ctx *gin.Context) {
 		})
 		return
 	}
-	o.SetAccessToken(ctx, u.Id)
+	// 设置登录态
+	ssid := longUUID.New().String()
+	o.SetAccessToken(ctx, u.Id, ssid)
 	ctx.JSON(http.StatusOK, Result{
 		Msg: "OK",
 	})

@@ -2,13 +2,12 @@ package middleware
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 	"net/http"
-	"webok/internal/web"
+	ijwt "webok/internal/web/jwt"
 )
 
 type LoginJWTMiddlewareBuilder struct {
-	web.JwtHandler
+	ijwt.Handler
 }
 
 func (m *LoginJWTMiddlewareBuilder) CheckLogin() gin.HandlerFunc {
@@ -24,23 +23,24 @@ func (m *LoginJWTMiddlewareBuilder) CheckLogin() gin.HandlerFunc {
 		}
 
 		tokenStr := m.ExtractToken(ctx)
-		var uc web.UserClaims
-		var token *jwt.Token
+		var uc *ijwt.TokenClaims
 		var err error
 		if path == "/users/refresh_token" {
-			token, err = jwt.ParseWithClaims(tokenStr, &uc, func(token *jwt.Token) (interface{}, error) {
-				return web.JWTReFreshKey, nil
-			})
+			uc, err = m.ParseRefreshToken(tokenStr)
 		} else {
-			token, err = jwt.ParseWithClaims(tokenStr, &uc, func(token *jwt.Token) (interface{}, error) {
-				return web.JWTKey, nil
-			})
+			uc, err = m.ParseAccessToken(tokenStr)
 		}
 
-		if err != nil || token == nil || !token.Valid {
+		if err != nil {
 			ctx.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
-		ctx.Set("user", uc)
+
+		err = m.CheckSession(ctx, uc.Ssid)
+		if err != nil {
+			ctx.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+		ctx.Set("user", *uc)
 	}
 }

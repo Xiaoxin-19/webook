@@ -10,6 +10,7 @@ import (
 	"webok/internal/repository/dao"
 	"webok/internal/service"
 	"webok/internal/web"
+	ijwt "webok/internal/web/jwt"
 	"webok/ioc"
 )
 
@@ -27,7 +28,7 @@ func InitWebServer() *gin.Engine {
 		ioc.InitSMSService, service.NewNormalUserService, service.NewCodeService,
 		ioc.InitWechatService,
 		// Handler
-		web.NewUserHandler, web.NewOAuth2WechatHandler,
+		ijwt.NewRedisHandler, web.NewUserHandler, web.NewOAuth2WechatHandler,
 		ioc.InitGinMiddlewares, ioc.InitWebServer,
 	)
 	return gin.Default()
