@@ -1,0 +1,5 @@
+database:
+  url: "host=localhost user=postgres password=postgres dbname=webook port=15432 sslmode=disable TimeZone=Asia/Shanghai"
+  
+redis:
+  url: "localhost:16379"

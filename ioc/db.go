@@ -1,14 +1,15 @@
 package ioc
 
 import (
+	"github.com/spf13/viper"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"webok/config"
 	"webok/internal/repository/dao"
 )
 
 func InitDB() *gorm.DB {
-	db, err := gorm.Open(postgres.Open(config.Config.DB.DSN), &gorm.Config{})
+	url := viper.GetString("database.Url")
+	db, err := gorm.Open(postgres.Open(url), &gorm.Config{})
 	if err != nil {
 		panic("data init failed")
 	}
