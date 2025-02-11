@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/spf13/pflag"
+	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
+	_ "github.com/spf13/viper/remote"
+	"log"
 )
 
 func main() {
@@ -17,11 +19,21 @@ func main() {
 }
 
 func loadConfig() {
-	configPath := pflag.String("config", "./config/dev.yaml", "config file path")
-	pflag.Parse()
-	viper.SetConfigFile(*configPath)
-	err := viper.ReadInConfig() // Find and read the config file
-	if err != nil {             // Handle errors reading the config file
+	err := viper.AddRemoteProvider("etcd3", "http://localhost:12379", "/webook")
+	if err != nil {
+		panic(err)
+	}
+	viper.SetConfigType("yaml")
+	err = viper.WatchRemoteConfig()
+	if err != nil {
+		panic(err)
+		return
+	}
+	viper.OnConfigChange(func(in fsnotify.Event) {
+		log.Printf("config changed!!!!\n")
+	})
+	err = viper.ReadRemoteConfig()
+	if err != nil { // Handle errors reading the config file
 		panic(fmt.Errorf("fatal error config file: %w", err))
 	}
 }
