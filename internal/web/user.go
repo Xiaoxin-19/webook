@@ -5,7 +5,6 @@ import (
 	regexp "github.com/dlclark/regexp2"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	"log"
 	"net/http"
 	"time"
 	"unicode/utf8"
@@ -71,7 +70,7 @@ func (h *UserHandler) signUp(ctx *gin.Context) {
 
 	isEmail, err := h.emailRexExp.MatchString(req.Email)
 	if err != nil {
-		ctx.String(http.StatusOK, "系统错误")
+		_ = ctx.Error(err)
 	}
 	if !isEmail {
 		ctx.String(http.StatusOK, "邮箱格式不符合")
@@ -85,7 +84,7 @@ func (h *UserHandler) signUp(ctx *gin.Context) {
 
 	isPwd, err := h.passwordRexExp.MatchString(req.Password)
 	if err != nil {
-		ctx.String(http.StatusOK, "系统错误")
+		_ = ctx.Error(err)
 		return
 	}
 	if !isPwd {
@@ -100,7 +99,7 @@ func (h *UserHandler) signUp(ctx *gin.Context) {
 	case errors.Is(err, service.ErrDuplicate):
 		ctx.String(http.StatusOK, "已注册,请登录")
 	default:
-		ctx.String(http.StatusOK, "系统错误")
+		_ = ctx.Error(err)
 	}
 }
 
@@ -117,15 +116,15 @@ func (h *UserHandler) LoginJWT(ctx *gin.Context) {
 	switch {
 	case err == nil:
 		err = h.SetLoginToken(ctx, u.Id)
-		if err != nil {
-			ctx.JSON(http.StatusOK, Result{Code: 5, Msg: "系统错误"})
+		if err == nil {
+			_ = ctx.Error(err)
 			return
 		}
 		ctx.JSON(http.StatusOK, Result{Msg: "登录成功"})
 	case errors.Is(err, service.ErrInvalidUserOrPassword):
 		ctx.JSON(http.StatusOK, Result{Code: 4, Msg: "用户名或者密码不对"})
 	default:
-		ctx.JSON(http.StatusOK, Result{Code: 5, Msg: "系统错误"})
+		_ = ctx.Error(err)
 	}
 }
 
@@ -133,7 +132,7 @@ func (h *UserHandler) ReFreshToken(ctx *gin.Context) {
 	uc := ctx.MustGet("user").(ijwt.TokenClaims)
 	err := h.SetAccessToken(ctx, uc.Uid, uc.Ssid)
 	if err != nil {
-		ctx.JSON(http.StatusOK, Result{Code: 5, Msg: "系统错误"})
+		_ = ctx.Error(err)
 		return
 	}
 	ctx.JSON(http.StatusOK, Result{Msg: "刷新成功"})
@@ -159,14 +158,14 @@ func (h *UserHandler) login(ctx *gin.Context) {
 		})
 		err = sess.Save()
 		if err != nil {
-			ctx.String(http.StatusOK, "系统错误")
+			_ = ctx.Error(err)
 			return
 		}
 		ctx.String(http.StatusOK, "登录成功")
 	case errors.Is(err, service.ErrInvalidUserOrPassword):
 		ctx.String(http.StatusOK, "用户名或者密码不对")
 	default:
-		ctx.String(http.StatusOK, "系统错误")
+		_ = ctx.Error(err)
 	}
 }
 
@@ -188,8 +187,7 @@ func (h *UserHandler) edit(ctx *gin.Context) {
 	}
 	t, err := time.Parse(time.DateOnly, req.BirthDay)
 	if err != nil {
-		log.Printf("%v", err)
-		ctx.String(http.StatusOK, "无法解析生日字符串")
+		ctx.JSON(http.StatusOK, Result{Code: 4, Msg: "生日日期格式错误"})
 		return
 	}
 
@@ -205,7 +203,7 @@ func (h *UserHandler) edit(ctx *gin.Context) {
 		AboutMe:  req.Brief,
 		Birthday: t})
 	if err != nil {
-		ctx.String(http.StatusOK, err.Error())
+		_ = ctx.Error(err)
 		return
 	}
 	ctx.String(http.StatusOK, "修改成功")
@@ -218,7 +216,7 @@ func (h *UserHandler) profile(ctx *gin.Context) {
 	u, err := h.svc.Profile(ctx, &domain.User{Id: id})
 
 	if err != nil {
-		ctx.String(http.StatusOK, "系统错误")
+		_ = ctx.Error(err)
 		return
 	}
 
@@ -246,15 +244,12 @@ func (h *UserHandler) SendSMSLoginCode(ctx *gin.Context) {
 
 	var req Req
 	if err := ctx.Bind(&req); err != nil {
-		ctx.JSON(http.StatusOK, Result{Code: 5, Msg: "系统异常"})
+		_ = ctx.Error(err)
 		return
 	}
 	ok, err := h.phoneRexExp.MatchString(req.Phone)
 	if err != nil {
-		ctx.JSON(http.StatusOK, Result{
-			Code: 5,
-			Msg:  "系统错误",
-		})
+		_ = ctx.Error(err)
 		return
 	}
 	if !ok {
@@ -274,10 +269,7 @@ func (h *UserHandler) SendSMSLoginCode(ctx *gin.Context) {
 			Msg:  "短信发送太频繁，请稍后再试",
 		})
 	default:
-		ctx.JSON(http.StatusOK, Result{
-			Code: 5,
-			Msg:  "系统错误",
-		})
+		_ = ctx.Error(err)
 	}
 }
 
@@ -294,7 +286,7 @@ func (h *UserHandler) LoginSMS(ctx *gin.Context) {
 
 	ok, err := h.codeSvc.Verify(ctx, bizLogin, req.Phone, req.Code)
 	if err != nil {
-		ctx.JSON(http.StatusOK, Result{Code: 5, Msg: "系统错误"})
+		_ = ctx.Error(err)
 		return
 	}
 	if !ok {
@@ -304,13 +296,13 @@ func (h *UserHandler) LoginSMS(ctx *gin.Context) {
 
 	u, err := h.svc.FindOrCreate(ctx, req.Phone)
 	if err != nil {
-		ctx.JSON(http.StatusOK, Result{Code: 5, Msg: "系统错误"})
+		_ = ctx.Error(err)
 		return
 	}
 	// 设置登录态
 	err = h.SetLoginToken(ctx, u.Id)
 	if err != nil {
-		ctx.JSON(http.StatusOK, Result{Code: 5, Msg: "系统错误"})
+		_ = ctx.Error(err)
 		return
 	}
 	ctx.JSON(http.StatusOK, Result{Msg: "登录成功"})
@@ -319,7 +311,7 @@ func (h *UserHandler) LoginSMS(ctx *gin.Context) {
 func (h *UserHandler) logout(ctx *gin.Context) {
 	err := h.ClearToken(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusOK, Result{Code: 5, Msg: "系统错误"})
+		_ = ctx.Error(err)
 		return
 	}
 	ctx.JSON(http.StatusOK, Result{Msg: "登出成功"})

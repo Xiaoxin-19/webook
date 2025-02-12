@@ -43,19 +43,14 @@ func (o *OAuth2WechatHandler) RegisterRoutes(server *gin.Engine) {
 func (o *OAuth2WechatHandler) Auth2URL(ctx *gin.Context) {
 	val, err := o.svc.AuthURL(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusOK, Result{
-			Code: 5,
-			Msg:  "构造授权链接失败",
-		})
+		_ = ctx.Error(err)
 		return
 	}
 	state := uuid.New()
 	err = o.setStateCookie(ctx, state)
 	if err != nil {
-		ctx.JSON(http.StatusOK, Result{
-			Msg:  "服务器异常",
-			Code: 5,
-		})
+		_ = ctx.Error(err)
+		return
 	}
 	ctx.JSON(http.StatusOK, Result{
 		Data: val,
@@ -84,15 +79,16 @@ func (o *OAuth2WechatHandler) Callback(ctx *gin.Context) {
 	}
 	u, err := o.userSvc.FindOrCreateByWechat(ctx, wechatInfo)
 	if err != nil {
-		ctx.JSON(http.StatusOK, Result{
-			Msg:  "系统错误",
-			Code: 5,
-		})
+		_ = ctx.Error(err)
 		return
 	}
 	// 设置登录态
 	ssid := longUUID.New().String()
-	o.SetAccessToken(ctx, u.Id, ssid)
+	if err := o.SetAccessToken(ctx, u.Id, ssid); err != nil {
+		_ = ctx.Error(err)
+		return
+	}
+
 	ctx.JSON(http.StatusOK, Result{
 		Msg: "OK",
 	})

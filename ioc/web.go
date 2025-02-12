@@ -29,6 +29,7 @@ func InitGinMiddlewares(client redis.Cmdable, jwt ijwt.Handler, l logger.Logger)
 		useJWT(jwt),
 		useRateLimit(client),
 		useLogger(l),
+		useErrorLogger(l),
 	}
 }
 
@@ -71,4 +72,8 @@ func useLogger(l logger.Logger) gin.HandlerFunc {
 		WithReqBody().
 		WithRespBody().
 		Build()
+}
+
+func useErrorLogger(l logger.Logger) gin.HandlerFunc {
+	return middleware.NewErrorLoggerBuilder(l).Build()
 }
