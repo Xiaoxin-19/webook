@@ -12,6 +12,7 @@ import (
 	"webok/internal/domain"
 	"webok/internal/service"
 	ijwt "webok/internal/web/jwt"
+	"webok/pkg/logger"
 )
 
 const (
@@ -29,9 +30,10 @@ type UserHandler struct {
 	phoneRexExp    *regexp.Regexp
 	svc            service.UserService
 	codeSvc        service.CodeService
+	log            logger.Logger
 }
 
-func NewUserHandler(svc service.UserService, codeSvc service.CodeService, jwt ijwt.Handler) *UserHandler {
+func NewUserHandler(svc service.UserService, codeSvc service.CodeService, jwt ijwt.Handler, l logger.Logger) *UserHandler {
 	return &UserHandler{
 		emailRexExp:    regexp.MustCompile(emailRegexPattern, regexp.None),
 		passwordRexExp: regexp.MustCompile(passwordRegexPattern, regexp.None),
@@ -39,6 +41,7 @@ func NewUserHandler(svc service.UserService, codeSvc service.CodeService, jwt ij
 		svc:            svc,
 		codeSvc:        codeSvc,
 		Handler:        jwt,
+		log:            l,
 	}
 }
 

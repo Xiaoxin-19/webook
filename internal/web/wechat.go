@@ -10,6 +10,7 @@ import (
 	"webok/internal/service"
 	"webok/internal/service/outh2/wechat"
 	ijwt "webok/internal/web/jwt"
+	"webok/pkg/logger"
 )
 
 type OAuth2WechatHandler struct {
@@ -18,15 +19,17 @@ type OAuth2WechatHandler struct {
 	userSvc         service.UserService
 	key             []byte
 	stateCookieName string
+	log             logger.Logger
 }
 
-func NewOAuth2WechatHandler(svc wechat.Service, userSvc service.UserService, jwt ijwt.Handler) *OAuth2WechatHandler {
+func NewOAuth2WechatHandler(svc wechat.Service, userSvc service.UserService, jwt ijwt.Handler, l logger.Logger) *OAuth2WechatHandler {
 	return &OAuth2WechatHandler{
 		svc:             svc,
 		userSvc:         userSvc,
 		key:             []byte("k6CswdUm77WKcbM68UQUuxVsHSpTCwgB"),
 		stateCookieName: "jwt-state",
 		Handler:         jwt,
+		log:             l,
 	}
 }
 

@@ -1,6 +1,7 @@
 package ioc
 
 import (
+	"context"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -11,6 +12,7 @@ import (
 	"webok/internal/web/middleware"
 	"webok/pkg/ginx/middleware/ratelimit"
 	"webok/pkg/limiter"
+	"webok/pkg/logger"
 )
 
 func InitWebServer(mdls []gin.HandlerFunc, userHdl *web.UserHandler, wechatHandler *web.OAuth2WechatHandler) *gin.Engine {
@@ -21,11 +23,12 @@ func InitWebServer(mdls []gin.HandlerFunc, userHdl *web.UserHandler, wechatHandl
 	return server
 }
 
-func InitGinMiddlewares(client redis.Cmdable, jwt ijwt.Handler) []gin.HandlerFunc {
+func InitGinMiddlewares(client redis.Cmdable, jwt ijwt.Handler, l logger.Logger) []gin.HandlerFunc {
 	return []gin.HandlerFunc{
 		useCors(),
 		useJWT(jwt),
 		useRateLimit(client),
+		useLogger(l),
 	}
 }
 
@@ -58,4 +61,14 @@ func useJWT(jwt ijwt.Handler) gin.HandlerFunc {
 		Handler: jwt,
 	}
 	return login.CheckLogin()
+}
+
+func useLogger(l logger.Logger) gin.HandlerFunc {
+	LogFn := func(ctx context.Context, log *middleware.AccessLog) {
+		l.Debug("", logger.Field{Val: log})
+	}
+	return middleware.NewLoggerMiddlewareBuilder(LogFn).
+		WithReqBody().
+		WithRespBody().
+		Build()
 }
