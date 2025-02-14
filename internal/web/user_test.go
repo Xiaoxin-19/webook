@@ -12,25 +12,28 @@ import (
 	"webok/internal/domain"
 	"webok/internal/service"
 	svcmocks "webok/internal/service/mock"
+	ijwt "webok/internal/web/jwt"
+	"webok/pkg/logger"
 )
 
 func TestUserHandler_SignUp(t *testing.T) {
 	testCases := []struct {
 		name       string
-		mock       func(ctrl *gomock.Controller) (service.UserService, service.CodeService)
+		mock       func(ctrl *gomock.Controller) (service.UserService, service.CodeService, ijwt.Handler)
 		reqBuilder func(t *testing.T) *http.Request
 		wantCode   int
 		wantBody   string
 	}{
 		{
 			name: "注册成功",
-			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService) {
+			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService, ijwt.Handler) {
 				userSvc := svcmocks.NewMockUserService(ctrl)
 				userSvc.EXPECT().SignUp(gomock.Any(), &domain.User{
 					Email:    "123@qq.com",
 					Password: "pass@1234",
 				}).Return(nil)
-				return userSvc, nil
+
+				return userSvc, nil, nil
 			},
 			reqBuilder: func(t *testing.T) *http.Request {
 				req, err := http.NewRequest(http.MethodPost, "/users/signup",
@@ -47,12 +50,12 @@ func TestUserHandler_SignUp(t *testing.T) {
 				return req
 			},
 			wantCode: http.StatusOK,
-			wantBody: `注册成功`,
+			wantBody: `{"code":0,"msg":"注册成功","data":null}`,
 		},
 		{
 			name: "Bind绑定失败",
-			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService) {
-				return nil, nil
+			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService, ijwt.Handler) {
+				return nil, nil, nil
 			},
 			reqBuilder: func(t *testing.T) *http.Request {
 				req, err := http.NewRequest(http.MethodPost, "/users/signup",
@@ -72,8 +75,8 @@ func TestUserHandler_SignUp(t *testing.T) {
 		},
 		{
 			name: "邮箱格式不对",
-			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService) {
-				return nil, nil
+			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService, ijwt.Handler) {
+				return nil, nil, nil
 			},
 			reqBuilder: func(t *testing.T) *http.Request {
 				req, err := http.NewRequest(http.MethodPost, "/users/signup",
@@ -91,12 +94,12 @@ func TestUserHandler_SignUp(t *testing.T) {
 				return req
 			},
 			wantCode: http.StatusOK,
-			wantBody: "邮箱格式不符合",
+			wantBody: `{"code":4,"msg":"邮箱格式错误","data":null}`,
 		},
 		{
 			name: "两次密码输入不同",
-			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService) {
-				return nil, nil
+			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService, ijwt.Handler) {
+				return nil, nil, nil
 			},
 			reqBuilder: func(t *testing.T) *http.Request {
 				req, err := http.NewRequest(http.MethodPost, "/users/signup",
@@ -114,12 +117,12 @@ func TestUserHandler_SignUp(t *testing.T) {
 				return req
 			},
 			wantCode: http.StatusOK,
-			wantBody: "两次密码不匹配",
+			wantBody: `{"code":4,"msg":"两次密码不一致","data":null}`,
 		},
 		{
 			name: "密码格式不对",
-			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService) {
-				return nil, nil
+			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService, ijwt.Handler) {
+				return nil, nil, nil
 			},
 			reqBuilder: func(t *testing.T) *http.Request {
 				req, err := http.NewRequest(http.MethodPost, "/users/signup",
@@ -137,17 +140,17 @@ func TestUserHandler_SignUp(t *testing.T) {
 				return req
 			},
 			wantCode: http.StatusOK,
-			wantBody: "密码格式错误",
+			wantBody: `{"code":4,"msg":"密码格式错误","data":null}`,
 		},
 		{
 			name: "系统错误",
-			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService) {
+			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService, ijwt.Handler) {
 				userSvc := svcmocks.NewMockUserService(ctrl)
 				userSvc.EXPECT().SignUp(gomock.Any(), &domain.User{
 					Email:    "123@qq.com",
 					Password: "pass@1234",
 				}).Return(errors.New("error in db"))
-				return userSvc, nil
+				return userSvc, nil, nil
 			},
 			reqBuilder: func(t *testing.T) *http.Request {
 				req, err := http.NewRequest(http.MethodPost, "/users/signup",
@@ -164,17 +167,17 @@ func TestUserHandler_SignUp(t *testing.T) {
 				return req
 			},
 			wantCode: http.StatusOK,
-			wantBody: `系统错误`,
+			wantBody: `{"code":5,"msg":"系统错误","data":null}`,
 		},
 		{
 			name: "邮箱冲突",
-			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService) {
+			mock: func(ctrl *gomock.Controller) (service.UserService, service.CodeService, ijwt.Handler) {
 				userSvc := svcmocks.NewMockUserService(ctrl)
 				userSvc.EXPECT().SignUp(gomock.Any(), &domain.User{
 					Email:    "123@qq.com",
 					Password: "pass@1234",
 				}).Return(service.ErrDuplicate)
-				return userSvc, nil
+				return userSvc, nil, nil
 			},
 			reqBuilder: func(t *testing.T) *http.Request {
 				req, err := http.NewRequest(http.MethodPost, "/users/signup",
@@ -191,18 +194,18 @@ func TestUserHandler_SignUp(t *testing.T) {
 				return req
 			},
 			wantCode: http.StatusOK,
-			wantBody: `已注册,请登录`,
+			wantBody: `{"code":4,"msg":"邮箱冲突","data":null}`,
 		},
 	}
-
+	var l logger.Logger = logger.NewNopLogger()
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// 不要全部测试用例共用一个ctrl
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			userSvc, codeSvc := tc.mock(ctrl)
-			hdl := NewUserHandler(userSvc, codeSvc)
+			userSvc, codeSvc, jwtHdl := tc.mock(ctrl)
+			hdl := NewUserHandler(userSvc, codeSvc, jwtHdl, l)
 
 			server := gin.Default()
 			hdl.RegisterRoutes(server)

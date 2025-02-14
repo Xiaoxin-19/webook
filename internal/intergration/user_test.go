@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 	"webok/internal/intergration/startup"
-	"webok/internal/web"
+	"webok/pkg/ginx"
 )
 
 func init() {
@@ -30,7 +30,7 @@ func TestUserHandler_SendSMS(t *testing.T) {
 
 		phone      string
 		wantCode   int
-		wantResult web.Result
+		wantResult ginx.Result
 	}{
 		{
 			name: "发送成功",
@@ -70,7 +70,7 @@ func TestUserHandler_SendSMS(t *testing.T) {
 			},
 			phone:      phone,
 			wantCode:   http.StatusOK,
-			wantResult: web.Result{Msg: "发送成功"},
+			wantResult: ginx.Result{Msg: "发送成功"},
 		},
 		{
 			name: "手机号码格式错误",
@@ -82,7 +82,7 @@ func TestUserHandler_SendSMS(t *testing.T) {
 			},
 			phone:      "1234",
 			wantCode:   http.StatusOK,
-			wantResult: web.Result{Code: 4, Msg: "手机格式不正确"},
+			wantResult: ginx.Result{Code: 4, Msg: "手机格式不正确"},
 		},
 		{
 			name: "验证码发送频繁",
@@ -132,7 +132,7 @@ func TestUserHandler_SendSMS(t *testing.T) {
 			},
 			phone:    phone,
 			wantCode: http.StatusOK,
-			wantResult: web.Result{Code: 4,
+			wantResult: ginx.Result{Code: 4,
 				Msg: "短信发送太频繁，请稍后再试"},
 		},
 		{
@@ -174,7 +174,7 @@ func TestUserHandler_SendSMS(t *testing.T) {
 			},
 			phone:    phone,
 			wantCode: http.StatusOK,
-			wantResult: web.Result{
+			wantResult: ginx.Result{
 				Code: 5,
 				Msg:  "系统错误"},
 		},
@@ -199,7 +199,7 @@ func TestUserHandler_SendSMS(t *testing.T) {
 				// 用于测试Bind分支，当bind失败的时候，会返回401，而其他会返回200
 				return
 			}
-			var res web.Result
+			var res ginx.Result
 			err = json.NewDecoder(recorder.Body).Decode(&res)
 			assert.NoError(t, err)
 			assert.Equal(t, testCase.wantResult, res)

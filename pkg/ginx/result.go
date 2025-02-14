@@ -1,4 +1,4 @@
-package web
+package ginx
 
 type Result struct {
 	Code uint16 `json:"code"`

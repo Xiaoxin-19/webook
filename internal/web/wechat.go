@@ -6,10 +6,10 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	longUUID "github.com/google/uuid"
 	uuid "github.com/lithammer/shortuuid/v4"
-	"net/http"
 	"webok/internal/service"
 	"webok/internal/service/outh2/wechat"
 	ijwt "webok/internal/web/jwt"
+	"webok/pkg/ginx"
 	"webok/pkg/logger"
 )
 
@@ -35,64 +35,45 @@ func NewOAuth2WechatHandler(svc wechat.Service, userSvc service.UserService, jwt
 
 func (o *OAuth2WechatHandler) RegisterRoutes(server *gin.Engine) {
 	g := server.Group("/oauth2/wechat")
-	g.GET("/authurl", o.Auth2URL)
-	// 不知道微信到底会返回一个什么请求
-	g.Any("/callback", o.Callback)
+	g.GET("/authurl", ginx.Warp(o.Auth2URL))
+	g.Any("/callback", ginx.Warp(o.Callback)) // 不知道微信到底会返回一个什么请求
 }
 
-func (o *OAuth2WechatHandler) Auth2URL(ctx *gin.Context) {
+func (o *OAuth2WechatHandler) Auth2URL(ctx *gin.Context) (ginx.Result, error) {
 	val, err := o.svc.AuthURL(ctx)
 	if err != nil {
-		_ = ctx.Error(err)
-		return
+		return ginx.Result{Msg: "系统错误", Code: 5}, err
 	}
 	state := uuid.New()
 	err = o.setStateCookie(ctx, state)
 	if err != nil {
-		_ = ctx.Error(err)
-		return
+		return ginx.Result{Msg: "系统错误", Code: 5}, err
 	}
-	ctx.JSON(http.StatusOK, Result{
-		Data: val,
-	})
+	return ginx.Result{Data: val}, nil
 }
 
-func (o *OAuth2WechatHandler) Callback(ctx *gin.Context) {
+func (o *OAuth2WechatHandler) Callback(ctx *gin.Context) (ginx.Result, error) {
 	err := o.verifyState(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusOK, Result{
-			Msg:  "非法请求",
-			Code: 4,
-		})
-		return
+		return ginx.Result{Msg: "非法请求", Code: 4}, err
 	}
 	// 你校验不校验都可以
 	code := ctx.Query("code")
 	// state := ctx.Query("state")
 	wechatInfo, err := o.svc.VerifyCode(ctx, code)
 	if err != nil {
-		ctx.JSON(http.StatusOK, Result{
-			Msg:  "授权码有误",
-			Code: 4,
-		})
-		return
+		return ginx.Result{Msg: "授权码有误", Code: 4}, err
 	}
 	u, err := o.userSvc.FindOrCreateByWechat(ctx, wechatInfo)
 	if err != nil {
-		_ = ctx.Error(err)
-		return
+		return ginx.Result{Msg: "系统错误", Code: 5}, err
 	}
 	// 设置登录态
 	ssid := longUUID.New().String()
 	if err := o.SetAccessToken(ctx, u.Id, ssid); err != nil {
-		_ = ctx.Error(err)
-		return
+		return ginx.Result{Msg: "系统错误", Code: 5}, err
 	}
-
-	ctx.JSON(http.StatusOK, Result{
-		Msg: "OK",
-	})
-	return
+	return ginx.Result{Msg: "Ok"}, nil
 
 }
 func (o *OAuth2WechatHandler) setStateCookie(ctx *gin.Context, state string) error {

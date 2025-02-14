@@ -3,7 +3,7 @@ package middleware
 import (
 	"github.com/gin-gonic/gin"
 	"net/http"
-	"webok/internal/web"
+	"webok/pkg/ginx"
 	"webok/pkg/logger"
 )
 
@@ -30,7 +30,7 @@ func (m *ErrorLoggerBuilder) Build() gin.HandlerFunc {
 				})
 			}
 			// 统一返回错误响应
-			c.JSON(http.StatusOK, web.Result{
+			c.JSON(http.StatusOK, ginx.Result{
 				Code: 5,
 				Msg:  "系统错误",
 			})
