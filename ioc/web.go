@@ -15,11 +15,12 @@ import (
 	"webok/pkg/logger"
 )
 
-func InitWebServer(mdls []gin.HandlerFunc, userHdl *web.UserHandler, wechatHandler *web.OAuth2WechatHandler) *gin.Engine {
+func InitWebServer(mdls []gin.HandlerFunc, userHdl *web.UserHandler, wechatHandler *web.OAuth2WechatHandler, articleHdl *web.ArticleHandler) *gin.Engine {
 	server := gin.Default()
 	server.Use(mdls...)
 	userHdl.RegisterRoutes(server)
 	wechatHandler.RegisterRoutes(server)
+	articleHdl.RegisterRoutes(server)
 	return server
 }
 

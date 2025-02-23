@@ -11,3 +11,10 @@ type Logger interface {
 	Warn(msg string, args ...Field)
 	Error(msg string, args ...Field)
 }
+
+func Error(err error) Field {
+	return Field{
+		Key: "error",
+		Val: err,
+	}
+}

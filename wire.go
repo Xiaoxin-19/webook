@@ -19,16 +19,16 @@ func InitWebServer() *gin.Engine {
 		//第三方依赖
 		ioc.InitDB, ioc.InitRedis, ioc.InitLogger,
 		// DAO
-		dao.NewGormUserDAO,
+		dao.NewGormUserDAO, dao.NewArticleGORMDAO,
 		// CACHE
 		cache.NewCodeRedisCache, cache.NewUserCache,
 		// REPO
-		repository.NewCachedUserRepository, repository.NewCodeRepository,
+		repository.NewCachedUserRepository, repository.NewCodeRepository, repository.NewCachedArticleRepository,
 		// Service
 		ioc.InitSMSService, service.NewNormalUserService, service.NewCodeService,
-		ioc.InitWechatService,
+		ioc.InitWechatService, service.NewArticleService,
 		// Handler
-		ijwt.NewRedisHandler, web.NewUserHandler, web.NewOAuth2WechatHandler,
+		ijwt.NewRedisHandler, web.NewUserHandler, web.NewOAuth2WechatHandler, web.NewArticleHandler,
 		ioc.InitGinMiddlewares, ioc.InitWebServer,
 	)
 	return gin.Default()
