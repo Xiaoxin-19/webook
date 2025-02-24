@@ -11,6 +11,7 @@ import (
 type ArticleService interface {
 	Save(ctx context.Context, article domain.Article) (int64, error)
 	Publish(ctx context.Context, article domain.Article) (int64, error)
+	Withdraw(ctx context.Context, uid int64, articleId int64) error
 }
 
 type articleService struct {
@@ -23,8 +24,8 @@ type articleService struct {
 }
 
 func (a *articleService) Publish(ctx context.Context, article domain.Article) (int64, error) {
-	//TODO implement me
-	panic("implement me")
+	article.Status = domain.ArticleStatusPublished
+	return a.repo.Sync(ctx, article)
 }
 
 func NewArticleService(repo repository.ArticleRepository) ArticleService {
@@ -41,6 +42,7 @@ func NewArticleServiceV1(reader repository.ArticleReaderRepository, author repos
 	}
 }
 func (a *articleService) PublishV1(ctx context.Context, article domain.Article) (int64, error) {
+	article.Status = domain.ArticleStatusPublished
 	var (
 		id  int64
 		err error
@@ -59,6 +61,7 @@ func (a *articleService) PublishV1(ctx context.Context, article domain.Article) 
 		err = a.readerRepo.Save(ctx, article)
 
 		if err == nil {
+
 			return id, nil
 		}
 		a.l.Error("部分失败，保存到线上库,重试", logger.Field{
@@ -78,8 +81,13 @@ func (a *articleService) PublishV1(ctx context.Context, article domain.Article) 
 }
 
 func (a *articleService) Save(ctx context.Context, article domain.Article) (int64, error) {
+	article.Status = domain.ArticleStatusUnpublished
 	if article.Id > 0 {
 		return article.Id, a.repo.Update(ctx, article)
 	}
 	return a.repo.Create(ctx, article)
+}
+
+func (a *articleService) Withdraw(ctx context.Context, uid int64, articleId int64) error {
+	return a.repo.SyncStatus(ctx, uid, articleId)
 }

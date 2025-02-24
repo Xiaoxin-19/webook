@@ -11,3 +11,7 @@ type PublishArticleReq struct {
 	Title   string `json:"title"`
 	Content string `json:"content"`
 }
+
+type WithdrawArticleReq struct {
+	Id int64 `json:"id"`
+}

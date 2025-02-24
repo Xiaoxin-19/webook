@@ -6,6 +6,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"time"
+	"webok/internal/domain"
 )
 
 var ErrUpdateFailed = errors.New("update failed, id - author_id not match")
@@ -15,6 +16,7 @@ type Article struct {
 	Title    string `gorm:"type:varchar(1024)"`
 	Content  string `gorm:"type:text"`
 	AuthorId int64  `gorm:"index"`
+	Status   uint8
 	Ctime    int64
 	Utime    int64
 }
@@ -25,6 +27,7 @@ type ArticleDAO interface {
 	Insert(ctx context.Context, article Article) (int64, error)
 	UpdateById(ctx context.Context, entity Article) error
 	Sync(ctx context.Context, article Article) (int64, error)
+	SyncStatus(ctx context.Context, authorId, Id int64, status domain.ArticleStatus) error
 }
 
 type ArticleGORMDAO struct {
@@ -60,6 +63,7 @@ func (a *ArticleGORMDAO) Sync(ctx context.Context, article Article) (int64, erro
 			DoUpdates: clause.Assignments(map[string]any{
 				"title":   pubArt.Title,
 				"content": pubArt.Content,
+				"status":  pubArt.Status,
 				"utime":   now,
 			}),
 		}).Create(&pubArt).Error
@@ -133,6 +137,7 @@ func (a *ArticleGORMDAO) UpdateById(ctx context.Context, entity Article) error {
 		Updates(map[string]any{
 			"title":   entity.Title,
 			"content": entity.Content,
+			"status":  entity.Status,
 			"utime":   entity.Utime,
 		})
 	if res.Error != nil {
@@ -142,4 +147,28 @@ func (a *ArticleGORMDAO) UpdateById(ctx context.Context, entity Article) error {
 		return ErrUpdateFailed
 	}
 	return nil
+}
+
+func (a *ArticleGORMDAO) SyncStatus(ctx context.Context, authorId, Id int64, status domain.ArticleStatus) error {
+	now := time.Now().UnixMilli()
+	err := a.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		err := tx.Model(&Article{}).Where("id = ? AND author_id = ?", Id, authorId).
+			Updates(map[string]any{
+				"status": status.ToUint8(),
+				"utime":  now,
+			})
+		if err.Error != nil {
+			return err.Error
+		}
+		if err.RowsAffected != 1 {
+			return errors.New("ID and author_id not match")
+		}
+
+		return tx.Model(&PublishedArticle{}).Where("id = ?", Id).
+			Updates(map[string]any{
+				"status": status.ToUint8(),
+				"utime":  now,
+			}).Error
+	})
+	return err
 }

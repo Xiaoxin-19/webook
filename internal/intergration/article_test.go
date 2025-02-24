@@ -74,6 +74,7 @@ func (s *ArticleHandlerSuite) Test_edit() {
 				assert.Equal(t, "test1", a.Title)
 				assert.Equal(t, "test1", a.Content)
 				assert.True(t, a.ID > 0)
+				assert.Equal(t, a.Status, uint8(1))
 				assert.Equal(t, int64(123), a.AuthorId)
 				assert.True(t, a.Ctime > 0)
 				assert.True(t, a.Utime > 0)
@@ -85,7 +86,9 @@ func (s *ArticleHandlerSuite) Test_edit() {
 			name: "修改文章",
 			art:  Article{Id: 1, Title: "test1", Content: "test2"},
 			before: func(t *testing.T) {
-				err := s.db.Create(&dao.Article{Title: "test1", Content: "test1", AuthorId: 123, Ctime: 789, Utime: 789}).Error
+				err := s.db.Create(&dao.Article{Title: "test1",
+					Content: "test1", AuthorId: 123,
+					Status: 2, Ctime: 789, Utime: 789}).Error
 				assert.Nil(t, err)
 			},
 			after: func(t *testing.T) {
@@ -94,6 +97,7 @@ func (s *ArticleHandlerSuite) Test_edit() {
 				assert.Equal(t, "test1", a.Title)
 				assert.Equal(t, "test2", a.Content)
 				assert.Equal(t, int64(1), a.ID)
+				assert.Equal(t, uint8(1), a.Status)
 				assert.Equal(t, int64(123), a.AuthorId)
 				assert.Equal(t, int64(789), a.Ctime)
 				assert.True(t, a.Utime != 789)
@@ -105,7 +109,8 @@ func (s *ArticleHandlerSuite) Test_edit() {
 			name: "修改别人的文章",
 			art:  Article{Id: 1, Title: "test1", Content: "test2"},
 			before: func(t *testing.T) {
-				err := s.db.Create(&dao.Article{Title: "test1", Content: "test1", AuthorId: 234, Ctime: 789, Utime: 789}).Error
+				err := s.db.Create(&dao.Article{Title: "test1", Content: "test1", AuthorId: 234,
+					Status: 2, Ctime: 789, Utime: 789}).Error
 				assert.Nil(t, err)
 			},
 			after: func(t *testing.T) {
@@ -114,6 +119,7 @@ func (s *ArticleHandlerSuite) Test_edit() {
 				assert.Equal(t, "test1", a.Title)
 				assert.Equal(t, "test1", a.Content)
 				assert.Equal(t, int64(1), a.ID)
+				assert.Equal(t, uint8(2), a.Status)
 				assert.Equal(t, int64(234), a.AuthorId)
 				assert.Equal(t, int64(789), a.Ctime)
 				assert.Equal(t, int64(789), a.Utime)
