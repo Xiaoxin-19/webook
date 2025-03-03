@@ -10,8 +10,10 @@ import (
 )
 
 func main() {
-	loadConfig()
+	//loadConfig()
+	loadLocalConfig()
 	initLogger()
+
 	server := InitWebServer()
 
 	err := server.Run(":8081")
@@ -35,6 +37,14 @@ func loadConfig() {
 		log.Printf("config changed!!!!\n")
 	})
 	err = viper.ReadRemoteConfig()
+	if err != nil { // Handle errors reading the config file
+		panic(fmt.Errorf("fatal error config file: %w", err))
+	}
+}
+
+func loadLocalConfig() {
+	viper.SetConfigFile("./config/dev.yaml")
+	err := viper.ReadInConfig()
 	if err != nil { // Handle errors reading the config file
 		panic(fmt.Errorf("fatal error config file: %w", err))
 	}

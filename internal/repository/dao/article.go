@@ -12,13 +12,13 @@ import (
 var ErrUpdateFailed = errors.New("update failed, id - author_id not match")
 
 type Article struct {
-	ID       int64  `gorm:"primaryKey,autoIncrement"`
-	Title    string `gorm:"type:varchar(1024)"`
-	Content  string `gorm:"type:text"`
-	AuthorId int64  `gorm:"index"`
-	Status   uint8
-	Ctime    int64
-	Utime    int64
+	ID       int64  `gorm:"primaryKey,autoIncrement" bson:"id, omitempty"`
+	Title    string `gorm:"type:varchar(1024)" bson:"title, omitempty"`
+	Content  string `gorm:"type:text" bson:"content, omitempty"`
+	AuthorId int64  `gorm:"index" bson:"author_id, omitempty"`
+	Status   uint8  `bson:"status, omitempty"`
+	Ctime    int64  `bson:"ctime, omitempty"`
+	Utime    int64  `bson:"utime, omitempty"`
 }
 
 type PublishedArticle Article

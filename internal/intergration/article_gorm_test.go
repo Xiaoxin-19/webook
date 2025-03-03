@@ -36,7 +36,7 @@ type ArticleHandlerSuite struct {
 
 func (s *ArticleHandlerSuite) SetupSuite() {
 	s.db = startup.InitDB()
-	hdl := startup.InitArticleHandler()
+	hdl := startup.InitArticleHandler(dao.NewArticleGORMDAO(s.db))
 	s.server = gin.Default()
 	s.server.Use(func(c *gin.Context) {
 		c.Set("user", ijwt.TokenClaims{Uid: 123})

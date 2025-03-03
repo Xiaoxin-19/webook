@@ -39,12 +39,10 @@ func InitWebServer() *gin.Engine {
 	return gin.Default()
 }
 
-func InitArticleHandler() *web.ArticleHandler {
+func InitArticleHandler(dao dao.ArticleDAO) *web.ArticleHandler {
 	wire.Build(
 		//第三方依赖
 		thirdPartySet,
-		// DAO
-		dao.NewArticleGORMDAO,
 		// REPO
 		repository.NewCachedArticleRepository,
 		// Service
