@@ -17,6 +17,22 @@ type MongoDBArticleDao struct {
 	liveCol *mongo.Collection
 }
 
+func (m *MongoDBArticleDao) GetPubById(ctx context.Context, id int64) (PublishedArticle, error) {
+
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m *MongoDBArticleDao) GetByAuthor(ctx context.Context, uid int64, offset int, limit int) ([]Article, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m *MongoDBArticleDao) GetById(ctx context.Context, id int64) (Article, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (m *MongoDBArticleDao) Insert(ctx context.Context, article Article) (int64, error) {
 	now := time.Now().UnixMilli()
 	article.ID = m.node.Generate().Int64()

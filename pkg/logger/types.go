@@ -18,3 +18,24 @@ func Error(err error) Field {
 		Val: err,
 	}
 }
+
+func Int(key string, i int) Field {
+	return Field{
+		Key: key,
+		Val: i,
+	}
+}
+
+func Int64(key string, i int64) Field {
+	return Field{
+		Key: key,
+		Val: i,
+	}
+}
+
+func String(key string, str string) Field {
+	return Field{
+		Key: key,
+		Val: str,
+	}
+}

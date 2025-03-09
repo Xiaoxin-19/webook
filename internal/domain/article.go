@@ -6,6 +6,8 @@ type Article struct {
 	Content string
 	Author  Author
 	Status  ArticleStatus
+	Ctime   int64
+	Utime   int64
 }
 
 type ArticleStatus uint8
@@ -28,4 +30,13 @@ const (
 type Author struct {
 	Id   int64
 	Name string
+}
+
+func (a *Article) Abstract() string {
+	str := []rune(a.Content)
+	// 只取部分作为摘要
+	if len(str) > 128 {
+		str = str[:128]
+	}
+	return string(str)
 }
