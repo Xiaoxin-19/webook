@@ -1,8 +1,10 @@
 package web
 
 import (
+	"context"
 	"github.com/gin-gonic/gin"
 	"strconv"
+	"time"
 	"webok/internal/domain"
 	"webok/internal/service"
 	ijwt "webok/internal/web/jwt"
@@ -11,14 +13,18 @@ import (
 )
 
 type ArticleHandler struct {
-	log logger.Logger
-	svc service.ArticleService
+	log      logger.Logger
+	svc      service.ArticleService
+	interSvc service.InteractiveService
+	biz      string
 }
 
-func NewArticleHandler(s service.ArticleService, l logger.Logger) *ArticleHandler {
+func NewArticleHandler(s service.ArticleService, l logger.Logger, isvc service.InteractiveService) *ArticleHandler {
 	return &ArticleHandler{
-		svc: s,
-		log: l,
+		svc:      s,
+		log:      l,
+		interSvc: isvc,
+		biz:      "article",
 	}
 }
 
@@ -154,6 +160,14 @@ func (h *ArticleHandler) pubDetail(ctx *gin.Context, uc ijwt.TokenClaims) (ginx.
 		h.log.Error("查询文章失败， 系统错误", logger.String("id", idStr), logger.Error(err))
 		return ginx.Result{Msg: "系统错误", Code: 5}, err
 	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		er := h.interSvc.IncrReadCnt(ctx, h.biz, art.Id)
+		if er != nil {
+			h.log.Error("增加阅读数失败", logger.Error(er), logger.Int64("id", art.Id))
+		}
+	}()
 
 	artVo := ArticleVO{
 		ID:         art.Id,

@@ -17,38 +17,64 @@ import (
 var thirdPartySet = wire.NewSet(
 	InitDB, InitRedis, InitLogger,
 )
+var userSvcProvider = wire.NewSet(
+	dao.NewGormUserDAO,
+	cache.NewUserCache,
+	repository.NewCachedUserRepository,
+	service.NewNormalUserService)
+
+var articleSvcProvider = wire.NewSet(
+	repository.NewCachedArticleRepository,
+	cache.NewArticleRedisCache,
+	dao.NewArticleGORMDAO,
+	service.NewArticleService)
+
+var interactiveSvcSet = wire.NewSet(
+	dao.NewInteractiveGORMDAO,
+	cache.NewRedisInteractiveCache,
+	repository.NewCachedInteractiveRepository,
+	service.NewInteractiveService,
+)
 
 func InitWebServer() *gin.Engine {
 	wire.Build(
 		//第三方依赖
 		thirdPartySet,
-		// DAO
-		dao.NewGormUserDAO, dao.NewArticleGORMDAO,
+		userSvcProvider,
+		articleSvcProvider,
+		interactiveSvcSet,
 		// CACHE
-		cache.NewCodeRedisCache, cache.NewUserCache,
+		cache.NewCodeRedisCache,
 		// REPO
-		repository.NewCachedUserRepository, repository.NewCodeRepository,
-		repository.NewCachedArticleRepository,
+		repository.NewCodeRepository,
 		// Service
-		ioc.InitSMSService, service.NewNormalUserService, service.NewCodeService,
-		service.NewArticleService,
+		ioc.InitSMSService,
+		service.NewCodeService,
+		ioc.InitWechatService,
 		// Handler
-		web.NewUserHandler, web.NewOAuth2WechatHandler, ijwt.NewRedisHandler, web.NewArticleHandler,
-		ioc.InitGinMiddlewares, ioc.InitWebServer, ioc.InitWechatService,
+		web.NewUserHandler,
+		web.NewOAuth2WechatHandler,
+		ijwt.NewRedisHandler,
+		web.NewArticleHandler,
+		ioc.InitGinMiddlewares,
+		ioc.InitWebServer,
 	)
 	return gin.Default()
 }
 
 func InitArticleHandler(dao dao.ArticleDAO) *web.ArticleHandler {
 	wire.Build(
-		//第三方依赖
 		thirdPartySet,
-		// REPO
+		userSvcProvider,
+		interactiveSvcSet,
 		repository.NewCachedArticleRepository,
-		// Service
+		cache.NewArticleRedisCache,
 		service.NewArticleService,
-		// Handler
-		web.NewArticleHandler,
-	)
+		web.NewArticleHandler)
 	return &web.ArticleHandler{}
+}
+
+func InitInteractiveService() service.InteractiveService {
+	wire.Build(thirdPartySet, interactiveSvcSet)
+	return service.NewInteractiveService(nil)
 }
