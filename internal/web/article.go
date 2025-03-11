@@ -38,6 +38,10 @@ func (h *ArticleHandler) RegisterRoutes(server *gin.Engine) {
 	ug.GET("/detail/:id", ginx.WarpClaims[ijwt.TokenClaims](h.detail))
 	pub := ug.Group("/pub")
 	pub.GET("/:id", ginx.WarpClaims[ijwt.TokenClaims](h.pubDetail))
+	pub.POST("/like", ginx.WarpBodyAndClaims[LikeArticleReq, ijwt.TokenClaims](h.like))
+	pub.POST("/cancelLike", ginx.WarpBodyAndClaims[LikeArticleReq, ijwt.TokenClaims](h.like))
+	pub.POST("/collect", ginx.WarpBodyAndClaims[CollectArticleReq, ijwt.TokenClaims](h.collect))
+
 }
 
 // edit 编辑文章 返回文章ID
@@ -184,4 +188,27 @@ func (h *ArticleHandler) pubDetail(ctx *gin.Context, uc ijwt.TokenClaims) (ginx.
 		Msg:  "",
 		Data: artVo,
 	}, err
+}
+
+func (h *ArticleHandler) like(ctx *gin.Context, req LikeArticleReq, claims ijwt.TokenClaims) (ginx.Result, error) {
+	var err error
+	if req.Like {
+		err = h.interSvc.Like(ctx, h.biz, req.Id, claims.Uid)
+	} else {
+		err = h.interSvc.CancelLike(ctx, h.biz, req.Id, claims.Uid)
+	}
+	if err != nil {
+		h.log.Error("点赞失败", logger.Error(err), logger.Int64("uid", claims.Uid), logger.Int64("id", req.Id))
+		return ginx.Result{Msg: "系统错误", Code: 5}, err
+	}
+	return ginx.Result{Msg: "ok"}, nil
+}
+
+func (h *ArticleHandler) collect(ctx *gin.Context, req CollectArticleReq, claims ijwt.TokenClaims) (ginx.Result, error) {
+	err := h.interSvc.Collect(ctx, h.biz, req.Id, req.Cid, claims.Uid)
+	if err != nil {
+		h.log.Error("收藏失败", logger.Error(err), logger.Int64("uid", claims.Uid), logger.Int64("id", req.Id))
+		return ginx.Result{Msg: "系统错误", Code: 5}, err
+	}
+	return ginx.Result{Msg: "ok"}, nil
 }

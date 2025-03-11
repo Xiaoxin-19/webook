@@ -27,3 +27,13 @@ type ArticleVO struct {
 	Ctime      int64  `json:"ctime,omitempty"`
 	Utime      int64  `json:"utime,omitempty"`
 }
+
+type LikeArticleReq struct {
+	Id   int64 `json:"id"`
+	Like bool  `json:"like"`
+}
+
+type CollectArticleReq struct {
+	Id  int64 `json:"id"`
+	Cid int64 `json:"cid"`
+}

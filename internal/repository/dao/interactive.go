@@ -10,7 +10,7 @@ import (
 type Interactive struct {
 	ID         int64  `gorm:"column:id;primaryKey;autoIncrement;comment:互动ID"`
 	BizId      int64  `gorm:"column:biz_id;comment:业务ID;uniqueIndex:biz_type_id"`
-	Biz        string `gorm:"column:biz;comment:业务类型;uniqueIndex:biz_type_id"`
+	Biz        string `gorm:"column:biz;type:varchar(128);comment:业务类型;uniqueIndex:biz_type_id"`
 	ReadCnt    int64
 	LikeCnt    int64
 	CollectCnt int64
@@ -18,21 +18,128 @@ type Interactive struct {
 	Utime      int64
 }
 
+type UserLikeBiz struct {
+	ID     int64  `gorm:"column:id;primaryKey;autoIncrement;comment:互动ID"`
+	UserId int64  `gorm:"column:user_id;comment:用户ID;uniqueIndex:uid_biz_type_id"`
+	BizId  int64  `gorm:"column:biz_id;comment:业务ID;uniqueIndex:uid_biz_type_id"`
+	Biz    string `gorm:"column:biz;type:varchar(128);comment:业务类型;uniqueIndex:uid_biz_type_id"`
+	Status uint8
+	Ctime  int64
+	Utime  int64
+}
+
+type UserCollectionBiz struct {
+	Id int64 `gorm:"primaryKey,autoIncrement"`
+	// 这边还是保留了了唯一索引
+	Uid   int64  `gorm:"uniqueIndex:uid_biz_type_id"`
+	BizId int64  `gorm:"uniqueIndex:uid_biz_type_id"`
+	Biz   string `gorm:"type:varchar(128);uniqueIndex:uid_biz_type_id"`
+	// 收藏夹的ID
+	// 收藏夹ID本身有索引
+	Cid   int64 `gorm:"index"`
+	Utime int64
+	Ctime int64
+}
+
 //go:generate mockgen -source=interactive.go -package=daomocks -destination=./mock/interactive.mock.go
 type InteractiveDao interface {
 	IncrReadCnt(ctx context.Context, biz string, id int64) error
+	IncrLickCnt(ctx context.Context, biz string, id int64, uid int64) error
+	DecrLickCnt(ctx context.Context, biz string, id int64, uid int64) error
+	InsertCollectionBiz(ctx context.Context, biz string, id int64, cid int64, uid int64) error
 }
 
 type InteractiveGORMDAO struct {
 	db *gorm.DB
 }
 
+func (i *InteractiveGORMDAO) InsertCollectionBiz(ctx context.Context, biz string, id int64, cid int64, uid int64) error {
+	now := time.Now().UnixMilli()
+	return i.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+
+		return tx.Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "biz_id"}, {Name: "biz"}},
+			DoUpdates: clause.Assignments(map[string]interface{}{
+				"collect_cnt": gorm.Expr("public.interactives.collect_cnt + 1"),
+				"utime":       now,
+			}),
+		}).Create(&Interactive{
+			BizId:      id,
+			Biz:        biz,
+			Utime:      now,
+			Ctime:      now,
+			CollectCnt: 1,
+		}).Error
+	})
+}
+
+func (i *InteractiveGORMDAO) IncrLickCnt(ctx context.Context, biz string, id int64, uid int64) error {
+	now := time.Now().UnixMilli()
+
+	return i.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		err := tx.Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "user_id"}, {Name: "biz_id"}, {Name: "biz"}},
+			DoUpdates: clause.Assignments(map[string]interface{}{
+				"ctime":  now,
+				"status": 1,
+			}),
+		}).Create(&UserLikeBiz{
+			UserId: uid,
+			BizId:  id,
+			Biz:    biz,
+			Ctime:  now,
+			Utime:  now,
+			Status: 1,
+		}).Error
+
+		if err != nil {
+			return err
+		}
+
+		err = tx.WithContext(ctx).Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "id"}},
+			DoUpdates: clause.Assignments(map[string]interface{}{
+				"like_cnt": gorm.Expr("webook.public.interactives.like_cnt + 1"),
+				"utime":    now,
+			}),
+		}).Create(&Interactive{
+			BizId:   id,
+			Biz:     biz,
+			Utime:   now,
+			Ctime:   now,
+			LikeCnt: 1,
+		}).Error
+		return err
+	})
+}
+
+func (i *InteractiveGORMDAO) DecrLickCnt(ctx context.Context, biz string, id int64, uid int64) error {
+	now := time.Now().UnixMilli()
+	return i.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		err := tx.WithContext(ctx).Model(&Interactive{}).Where("biz =? AND biz_id=?", biz, id).
+			Updates(map[string]interface{}{
+				"like_cnt": gorm.Expr("public.interactives.like_cnt - 1"),
+				"utime":    now,
+			}).Error
+		if err != nil {
+			return err
+		}
+
+		// 软删除用户点赞信息
+		err = tx.WithContext(ctx).Model(&UserLikeBiz{}).Where("user_id=? AND biz =? AND biz_id=?", uid, biz, id).Updates(map[string]any{
+			"status": 0,
+			"utime":  now,
+		}).Error
+		return err
+	})
+}
+
 func (i *InteractiveGORMDAO) IncrReadCnt(ctx context.Context, biz string, id int64) error {
 	now := time.Now().UnixMilli()
 	err := i.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "id"}},
+		Columns: []clause.Column{{Name: "biz_id"}, {Name: "biz"}},
 		DoUpdates: clause.Assignments(map[string]interface{}{
-			"read_cnt": gorm.Expr("webook.public.interactives.read_cnt + 1"),
+			"read_cnt": gorm.Expr("public.interactives.read_cnt + 1"),
 			"utime":    now,
 		}),
 	}).Create(&Interactive{
