@@ -20,9 +20,9 @@ type Interactive struct {
 
 type UserLikeBiz struct {
 	ID     int64  `gorm:"column:id;primaryKey;autoIncrement;comment:互动ID"`
-	UserId int64  `gorm:"column:user_id;comment:用户ID;uniqueIndex:uid_biz_type_id"`
-	BizId  int64  `gorm:"column:biz_id;comment:业务ID;uniqueIndex:uid_biz_type_id"`
-	Biz    string `gorm:"column:biz;type:varchar(128);comment:业务类型;uniqueIndex:uid_biz_type_id"`
+	UserId int64  `gorm:"column:uid;comment:用户ID;uniqueIndex:like_uid_biz_type_id"`
+	BizId  int64  `gorm:"column:biz_id;comment:业务ID;uniqueIndex:like_uid_biz_type_id"`
+	Biz    string `gorm:"column:biz;type:varchar(128);comment:业务类型;uniqueIndex:like_uid_biz_type_id"`
 	Status uint8
 	Ctime  int64
 	Utime  int64
@@ -31,9 +31,9 @@ type UserLikeBiz struct {
 type UserCollectionBiz struct {
 	Id int64 `gorm:"primaryKey,autoIncrement"`
 	// 这边还是保留了了唯一索引
-	Uid   int64  `gorm:"uniqueIndex:uid_biz_type_id"`
-	BizId int64  `gorm:"uniqueIndex:uid_biz_type_id"`
-	Biz   string `gorm:"type:varchar(128);uniqueIndex:uid_biz_type_id"`
+	Uid   int64  `gorm:"column:uid;uniqueIndex:collect_uid_biz_type_id"`
+	BizId int64  `gorm:"column:biz_id;uniqueIndex:collect_uid_biz_type_id"`
+	Biz   string `gorm:"column:biz;type:varchar(128);uniqueIndex:collect_uid_biz_type_id"`
 	// 收藏夹的ID
 	// 收藏夹ID本身有索引
 	Cid   int64 `gorm:"index"`
@@ -47,15 +47,54 @@ type InteractiveDao interface {
 	IncrLickCnt(ctx context.Context, biz string, id int64, uid int64) error
 	DecrLickCnt(ctx context.Context, biz string, id int64, uid int64) error
 	InsertCollectionBiz(ctx context.Context, biz string, id int64, cid int64, uid int64) error
+	Get(ctx context.Context, biz string, id int64) (Interactive, error)
+	GetLikedInfo(ctx context.Context, biz string, id int64, uid int64) (UserLikeBiz, error)
+	GetCollectionInfo(ctx context.Context, biz string, id int64, uid int64) (UserCollectionBiz, error)
 }
 
 type InteractiveGORMDAO struct {
 	db *gorm.DB
 }
 
+func (i *InteractiveGORMDAO) GetCollectionInfo(ctx context.Context, biz string, id int64, uid int64) (UserCollectionBiz, error) {
+	var collection UserCollectionBiz
+	err := i.db.WithContext(ctx).Where("uid = ? AND biz = ? AND biz_id = ?", uid, biz, id).First(&collection).Error
+	if err != nil {
+		return UserCollectionBiz{}, err
+	}
+	return collection, nil
+}
+
+func (i *InteractiveGORMDAO) GetLikedInfo(ctx context.Context, biz string, id int64, uid int64) (UserLikeBiz, error) {
+
+	var like UserLikeBiz
+	err := i.db.WithContext(ctx).Where("uid = ? AND biz = ? AND biz_id = ? AND status = ?", uid, biz, id, 1).First(&like).Error
+	if err != nil {
+		return UserLikeBiz{}, err
+	}
+	return like, nil
+}
+
+func (i *InteractiveGORMDAO) Get(ctx context.Context, biz string, id int64) (Interactive, error) {
+	var intr Interactive
+	err := i.db.WithContext(ctx).Where("biz = ? AND biz_id = ?", biz, id).First(&intr).Error
+	return intr, err
+}
+
 func (i *InteractiveGORMDAO) InsertCollectionBiz(ctx context.Context, biz string, id int64, cid int64, uid int64) error {
 	now := time.Now().UnixMilli()
 	return i.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		err := tx.Model(&UserCollectionBiz{}).Create(&UserCollectionBiz{
+			Uid:   uid,
+			BizId: id,
+			Biz:   biz,
+			Cid:   cid,
+			Ctime: now,
+			Utime: now,
+		}).Error
+		if err != nil {
+			return err
+		}
 
 		return tx.Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "biz_id"}, {Name: "biz"}},
@@ -78,9 +117,9 @@ func (i *InteractiveGORMDAO) IncrLickCnt(ctx context.Context, biz string, id int
 
 	return i.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		err := tx.Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "user_id"}, {Name: "biz_id"}, {Name: "biz"}},
+			Columns: []clause.Column{{Name: "uid"}, {Name: "biz_id"}, {Name: "biz"}},
 			DoUpdates: clause.Assignments(map[string]interface{}{
-				"ctime":  now,
+				"utime":  now,
 				"status": 1,
 			}),
 		}).Create(&UserLikeBiz{
@@ -97,7 +136,7 @@ func (i *InteractiveGORMDAO) IncrLickCnt(ctx context.Context, biz string, id int
 		}
 
 		err = tx.WithContext(ctx).Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "id"}},
+			Columns: []clause.Column{{Name: "biz_id"}, {Name: "biz"}},
 			DoUpdates: clause.Assignments(map[string]interface{}{
 				"like_cnt": gorm.Expr("webook.public.interactives.like_cnt + 1"),
 				"utime":    now,
@@ -126,7 +165,7 @@ func (i *InteractiveGORMDAO) DecrLickCnt(ctx context.Context, biz string, id int
 		}
 
 		// 软删除用户点赞信息
-		err = tx.WithContext(ctx).Model(&UserLikeBiz{}).Where("user_id=? AND biz =? AND biz_id=?", uid, biz, id).Updates(map[string]any{
+		err = tx.WithContext(ctx).Model(&UserLikeBiz{}).Where("uid=? AND biz =? AND biz_id=?", uid, biz, id).Updates(map[string]any{
 			"status": 0,
 			"utime":  now,
 		}).Error

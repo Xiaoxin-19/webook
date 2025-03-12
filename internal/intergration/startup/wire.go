@@ -76,5 +76,5 @@ func InitArticleHandler(dao dao.ArticleDAO) *web.ArticleHandler {
 
 func InitInteractiveService() service.InteractiveService {
 	wire.Build(thirdPartySet, interactiveSvcSet)
-	return service.NewInteractiveService(nil)
+	return service.NewInteractiveService(nil, nil)
 }

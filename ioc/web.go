@@ -37,6 +37,7 @@ func InitGinMiddlewares(client redis.Cmdable, jwt ijwt.Handler, l logger.Logger)
 func useCors() gin.HandlerFunc {
 	// 设置跨域请求
 	corsConfig := cors.DefaultConfig()
+	corsConfig.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
 	corsConfig.AllowCredentials = true
 	corsConfig.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}
 	// 这个是允许前端访问你的后端响应中带的头部

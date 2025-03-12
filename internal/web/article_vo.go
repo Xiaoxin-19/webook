@@ -21,11 +21,17 @@ type ArticleVO struct {
 	Title      string `json:"title,omitempty"`
 	Abstract   string `json:"abstract,omitempty"`
 	Content    string `json:"content,omitempty"`
-	AuthorId   int64  `json:"author_id,omitempty"`
-	AuthorName string `json:"author_name,omitempty"`
+	AuthorId   int64  `json:"authorId,omitempty"`
+	AuthorName string `json:"authorName,omitempty"`
 	Status     uint8  `json:"status,omitempty"`
-	Ctime      int64  `json:"ctime,omitempty"`
-	Utime      int64  `json:"utime,omitempty"`
+	Ctime      string `json:"ctime,omitempty"`
+	Utime      string `json:"utime,omitempty"`
+
+	ReadCnt    int64 `json:"readCnt"`
+	LikeCnt    int64 `json:"likeCnt"`
+	CollectCnt int64 `json:"collectCnt"`
+	Liked      bool  `json:"liked"`
+	Collected  bool  `json:"collected"`
 }
 
 type LikeArticleReq struct {

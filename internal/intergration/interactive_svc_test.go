@@ -235,7 +235,7 @@ func (s *InteractiveTestSuite) TestLike() {
 				}, data)
 
 				var likeBiz dao.UserLikeBiz
-				err = s.db.Where("biz = ? AND biz_id = ? AND user_id = ?",
+				err = s.db.Where("biz = ? AND biz_id = ? AND uid = ?",
 					"test", 2, 123).First(&likeBiz).Error
 				assert.NoError(t, err)
 				assert.True(t, likeBiz.ID > 0)
@@ -284,7 +284,7 @@ func (s *InteractiveTestSuite) TestLike() {
 				}, data)
 
 				var likeBiz dao.UserLikeBiz
-				err = s.db.Where("biz = ? AND biz_id = ? AND user_id = ?",
+				err = s.db.Where("biz = ? AND biz_id = ? AND uid = ?",
 					"test", 3, 124).First(&likeBiz).Error
 				assert.NoError(t, err)
 				assert.True(t, likeBiz.ID > 0)

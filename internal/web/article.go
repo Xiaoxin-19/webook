@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/sync/errgroup"
 	"strconv"
 	"time"
 	"webok/internal/domain"
@@ -105,8 +106,8 @@ func (h *ArticleHandler) list(ctx *gin.Context, req Page, uc ijwt.TokenClaims) (
 			AuthorId:   v.Author.Id,
 			AuthorName: v.Author.Name,
 			Status:     v.Status.ToUint8(),
-			Ctime:      v.Ctime,
-			Utime:      v.Utime,
+			Ctime:      time.UnixMilli(v.Ctime).Format(time.DateTime),
+			Utime:      time.UnixMilli(v.Utime).Format(time.DateTime),
 		}
 		data[i] = vo
 	}
@@ -143,8 +144,8 @@ func (h *ArticleHandler) detail(ctx *gin.Context, uc ijwt.TokenClaims) (ginx.Res
 		AuthorId:   art.Author.Id,
 		AuthorName: art.Author.Name,
 		Status:     art.Status.ToUint8(),
-		Ctime:      art.Ctime,
-		Utime:      art.Utime,
+		Ctime:      time.UnixMilli(art.Ctime).Format(time.DateTime),
+		Utime:      time.UnixMilli(art.Utime).Format(time.DateTime),
 	}
 	return ginx.Result{Data: vo}, nil
 }
@@ -159,11 +160,37 @@ func (h *ArticleHandler) pubDetail(ctx *gin.Context, uc ijwt.TokenClaims) (ginx.
 		return ginx.Result{Msg: "参数错误", Code: 4}, err
 	}
 
-	art, err := h.svc.GetPubById(ctx, id)
+	var (
+		eg   errgroup.Group
+		art  domain.Article
+		intr domain.Interactive
+	)
+
+	eg.Go(func() error {
+		var er error
+		art, er = h.svc.GetPubById(ctx, id)
+		if er != nil {
+			h.log.Error("查询文章失败内容失败，", logger.String("id", idStr), logger.Error(err))
+			return err
+		}
+		return nil
+	})
+
+	eg.Go(func() error {
+		var er error
+		intr, er = h.interSvc.Get(ctx, h.biz, id, uc.Uid)
+		if er != nil {
+			h.log.Error("查询文章交互状态失败", logger.String("id", idStr), logger.Error(err))
+			return err
+		}
+		return nil
+	})
+
+	err = eg.Wait()
 	if err != nil {
-		h.log.Error("查询文章失败， 系统错误", logger.String("id", idStr), logger.Error(err))
 		return ginx.Result{Msg: "系统错误", Code: 5}, err
 	}
+
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
@@ -180,8 +207,13 @@ func (h *ArticleHandler) pubDetail(ctx *gin.Context, uc ijwt.TokenClaims) (ginx.
 		AuthorId:   art.Author.Id,
 		AuthorName: art.Author.Name,
 		Status:     art.Status.ToUint8(),
-		Ctime:      art.Ctime,
-		Utime:      art.Utime,
+		Ctime:      time.UnixMilli(art.Ctime).Format(time.DateTime),
+		Utime:      time.UnixMilli(art.Utime).Format(time.DateTime),
+		LikeCnt:    intr.LikeCnt,
+		Collected:  intr.Collected,
+		Liked:      intr.Liked,
+		ReadCnt:    intr.ReadCnt,
+		CollectCnt: intr.CollectCnt,
 	}
 	return ginx.Result{
 		Code: 0,

@@ -43,8 +43,8 @@ func InitWebServer() *gin.Engine {
 	articleService := service.NewArticleService(articleRepository)
 	interactiveDao := dao.NewInteractiveGORMDAO(db)
 	interactiveCache := cache.NewRedisInteractiveCache(cmdable)
-	interactiveRepository := repository.NewCachedInteractiveRepository(interactiveDao, interactiveCache)
-	interactiveService := service.NewInteractiveService(interactiveRepository)
+	interactiveRepository := repository.NewCachedInteractiveRepository(interactiveDao, interactiveCache, logger)
+	interactiveService := service.NewInteractiveService(interactiveRepository, logger)
 	articleHandler := web.NewArticleHandler(articleService, logger, interactiveService)
 	engine := ioc.InitWebServer(v, userHandler, oAuth2WechatHandler, articleHandler)
 	return engine
@@ -62,8 +62,8 @@ func InitArticleHandler(dao2 dao.ArticleDAO) *web.ArticleHandler {
 	logger := InitLogger()
 	interactiveDao := dao.NewInteractiveGORMDAO(db)
 	interactiveCache := cache.NewRedisInteractiveCache(cmdable)
-	interactiveRepository := repository.NewCachedInteractiveRepository(interactiveDao, interactiveCache)
-	interactiveService := service.NewInteractiveService(interactiveRepository)
+	interactiveRepository := repository.NewCachedInteractiveRepository(interactiveDao, interactiveCache, logger)
+	interactiveService := service.NewInteractiveService(interactiveRepository, logger)
 	articleHandler := web.NewArticleHandler(articleService, logger, interactiveService)
 	return articleHandler
 }
@@ -73,8 +73,9 @@ func InitInteractiveService() service.InteractiveService {
 	interactiveDao := dao.NewInteractiveGORMDAO(db)
 	cmdable := InitRedis()
 	interactiveCache := cache.NewRedisInteractiveCache(cmdable)
-	interactiveRepository := repository.NewCachedInteractiveRepository(interactiveDao, interactiveCache)
-	interactiveService := service.NewInteractiveService(interactiveRepository)
+	logger := InitLogger()
+	interactiveRepository := repository.NewCachedInteractiveRepository(interactiveDao, interactiveCache, logger)
+	interactiveService := service.NewInteractiveService(interactiveRepository, logger)
 	return interactiveService
 }
 

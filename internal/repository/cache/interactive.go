@@ -5,6 +5,9 @@ import (
 	_ "embed"
 	"fmt"
 	"github.com/redis/go-redis/v9"
+	"strconv"
+	"time"
+	"webok/internal/domain"
 )
 
 var (
@@ -22,10 +25,40 @@ type InteractiveCache interface {
 	IncrLikeCntIfPresent(ctx context.Context, biz string, id int64) error
 	DecrLikeCntIfPresent(ctx context.Context, biz string, id int64) error
 	IncrCollectionCntIfPresent(ctx context.Context, biz string, id int64) error
+	Get(ctx context.Context, biz string, id int64) (domain.Interactive, error)
+	Set(ctx context.Context, biz string, id int64, ie domain.Interactive) error
 }
 
 type RedisInteractiveCache struct {
 	cmd redis.Cmdable
+}
+
+func (r *RedisInteractiveCache) Set(ctx context.Context, biz string, id int64, ie domain.Interactive) error {
+	_, err := r.cmd.HSet(ctx, r.key(biz, id), fieldLikeCnt, ie.LikeCnt,
+		fieldReadCnt, ie.ReadCnt,
+		fieldCollectCnt, ie.CollectCnt).Result()
+	if err != nil {
+		return err
+	}
+	return r.cmd.Expire(ctx, r.key(biz, id), time.Minute*15).Err()
+}
+
+func (r *RedisInteractiveCache) Get(ctx context.Context, biz string, id int64) (domain.Interactive, error) {
+	res, err := r.cmd.HGetAll(ctx, r.key(biz, id)).Result()
+	if err != nil {
+		return domain.Interactive{}, err
+	}
+
+	if len(res) == 0 {
+		return domain.Interactive{}, ErrKeyNotExist
+	}
+
+	var interactive domain.Interactive
+	interactive.LikeCnt, _ = strconv.ParseInt(res[fieldLikeCnt], 10, 64)
+	interactive.ReadCnt, _ = strconv.ParseInt(res[fieldReadCnt], 10, 64)
+	interactive.CollectCnt, _ = strconv.ParseInt(res[fieldCollectCnt], 10, 64)
+
+	return interactive, nil
 }
 
 func (r *RedisInteractiveCache) IncrCollectionCntIfPresent(ctx context.Context, biz string, id int64) error {
