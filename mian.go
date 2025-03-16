@@ -13,8 +13,14 @@ func main() {
 	//loadConfig()
 	loadLocalConfig()
 	initLogger()
-
-	server := InitWebServer()
+	app := InitWebServer()
+	for _, c := range app.consumers {
+		err := c.Start()
+		if err != nil {
+			panic(err)
+		}
+	}
+	server := app.server
 
 	err := server.Run(":8081")
 	if err != nil {

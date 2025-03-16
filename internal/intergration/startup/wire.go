@@ -5,6 +5,7 @@ package startup
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/wire"
+	"webok/internal/events/article"
 	"webok/internal/repository"
 	"webok/internal/repository/cache"
 	"webok/internal/repository/dao"
@@ -16,6 +17,8 @@ import (
 
 var thirdPartySet = wire.NewSet(
 	InitDB, InitRedis, InitLogger,
+	InitSaramaClient,
+	InitSyncProducer,
 )
 var userSvcProvider = wire.NewSet(
 	dao.NewGormUserDAO,
@@ -47,6 +50,7 @@ func InitWebServer() *gin.Engine {
 		cache.NewCodeRedisCache,
 		// REPO
 		repository.NewCodeRepository,
+		article.NewSaramaSyncProducer,
 		// Service
 		ioc.InitSMSService,
 		service.NewCodeService,
@@ -70,6 +74,7 @@ func InitArticleHandler(dao dao.ArticleDAO) *web.ArticleHandler {
 		repository.NewCachedArticleRepository,
 		cache.NewArticleRedisCache,
 		service.NewArticleService,
+		article.NewSaramaSyncProducer,
 		web.NewArticleHandler)
 	return &web.ArticleHandler{}
 }

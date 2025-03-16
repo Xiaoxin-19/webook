@@ -26,6 +26,10 @@ func Int(key string, i int) Field {
 	}
 }
 
+func Int32(key string, val int32) Field {
+	return Field{Key: key, Val: val}
+}
+
 func Int64(key string, i int64) Field {
 	return Field{
 		Key: key,

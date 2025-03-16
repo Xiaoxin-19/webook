@@ -1,7 +1,6 @@
 package web
 
 import (
-	"context"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/sync/errgroup"
 	"strconv"
@@ -168,7 +167,7 @@ func (h *ArticleHandler) pubDetail(ctx *gin.Context, uc ijwt.TokenClaims) (ginx.
 
 	eg.Go(func() error {
 		var er error
-		art, er = h.svc.GetPubById(ctx, id)
+		art, er = h.svc.GetPubById(ctx, id, uc.Uid)
 		if er != nil {
 			h.log.Error("查询文章失败内容失败，", logger.String("id", idStr), logger.Error(err))
 			return err
@@ -191,14 +190,14 @@ func (h *ArticleHandler) pubDetail(ctx *gin.Context, uc ijwt.TokenClaims) (ginx.
 		return ginx.Result{Msg: "系统错误", Code: 5}, err
 	}
 
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		defer cancel()
-		er := h.interSvc.IncrReadCnt(ctx, h.biz, art.Id)
-		if er != nil {
-			h.log.Error("增加阅读数失败", logger.Error(er), logger.Int64("id", art.Id))
-		}
-	}()
+	//go func() {
+	//	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	//	defer cancel()
+	//	er := h.interSvc.IncrReadCnt(ctx, h.biz, art.Id)
+	//	if er != nil {
+	//		h.log.Error("增加阅读数失败", logger.Error(er), logger.Int64("id", art.Id))
+	//	}
+	//}()
 
 	artVo := ArticleVO{
 		ID:         art.Id,

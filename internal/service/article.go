@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"webok/internal/domain"
+	"webok/internal/events/article"
 	"webok/internal/repository"
 	"webok/pkg/logger"
 )
@@ -14,7 +15,7 @@ type ArticleService interface {
 	Withdraw(ctx context.Context, uid int64, articleId int64) error
 	GetByAuthor(ctx context.Context, uid int64, offset int, limit int) ([]domain.Article, error)
 	GetById(ctx context.Context, id int64) (domain.Article, error)
-	GetPubById(ctx context.Context, id int64) (domain.Article, error)
+	GetPubById(ctx context.Context, id, uid int64) (domain.Article, error)
 }
 
 type articleService struct {
@@ -24,10 +25,28 @@ type articleService struct {
 	// v1 specific
 	readerRepo repository.ArticleReaderRepository
 	authorRepo repository.ArticleAuthorRepository
+	producer   article.Producer
 }
 
-func (a *articleService) GetPubById(ctx context.Context, id int64) (domain.Article, error) {
-	return a.repo.GetPubById(ctx, id)
+func (a *articleService) GetPubById(ctx context.Context, id, uid int64) (domain.Article, error) {
+	res, err := a.repo.GetPubById(ctx, id)
+	go func() {
+		if err == nil {
+			// 在这里发一个消息
+			er := a.producer.ProduceReadEvent(article.ReadEvent{
+				Aid: id,
+				Uid: uid,
+			})
+			if er != nil {
+				a.l.Error("发送 ReadEvent 失败",
+					logger.Int64("aid", id),
+					logger.Int64("uid", uid),
+					logger.Error(err))
+			}
+		}
+	}()
+
+	return res, err
 }
 
 func (a *articleService) GetById(ctx context.Context, id int64) (domain.Article, error) {
@@ -39,17 +58,19 @@ func (a *articleService) Publish(ctx context.Context, article domain.Article) (i
 	return a.repo.Sync(ctx, article)
 }
 
-func NewArticleService(repo repository.ArticleRepository) ArticleService {
+func NewArticleService(repo repository.ArticleRepository, producer article.Producer) ArticleService {
 	return &articleService{
-		repo: repo,
+		repo:     repo,
+		producer: producer,
 	}
 }
 
-func NewArticleServiceV1(reader repository.ArticleReaderRepository, author repository.ArticleAuthorRepository, l logger.Logger) *articleService {
+func NewArticleServiceV1(reader repository.ArticleReaderRepository, author repository.ArticleAuthorRepository, l logger.Logger, producer article.Producer) *articleService {
 	return &articleService{
 		readerRepo: reader,
 		authorRepo: author,
 		l:          l,
+		producer:   producer,
 	}
 }
 func (a *articleService) PublishV1(ctx context.Context, article domain.Article) (int64, error) {
