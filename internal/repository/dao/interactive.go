@@ -44,6 +44,7 @@ type UserCollectionBiz struct {
 //go:generate mockgen -source=interactive.go -package=daomocks -destination=./mock/interactive.mock.go
 type InteractiveDao interface {
 	IncrReadCnt(ctx context.Context, biz string, id int64) error
+	BatchIncrReadCnt(ctx context.Context, bizs []string, bizIds []int64) error
 	IncrLickCnt(ctx context.Context, biz string, id int64, uid int64) error
 	DecrLickCnt(ctx context.Context, biz string, id int64, uid int64) error
 	InsertCollectionBiz(ctx context.Context, biz string, id int64, cid int64, uid int64) error
@@ -191,6 +192,18 @@ func (i *InteractiveGORMDAO) IncrReadCnt(ctx context.Context, biz string, id int
 	return err
 }
 
+func (dao *InteractiveGORMDAO) BatchIncrReadCnt(ctx context.Context, bizs []string, bizIds []int64) error {
+	return dao.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txDAO := NewInteractiveGORMDAO(tx)
+		for i := 0; i < len(bizs); i++ {
+			err := txDAO.IncrReadCnt(ctx, bizs[i], bizIds[i])
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
 func NewInteractiveGORMDAO(db *gorm.DB) InteractiveDao {
 	return &InteractiveGORMDAO{db: db}
 }

@@ -16,6 +16,11 @@ type ReadEvent struct {
 	Uid int64
 }
 
+type BatchReadEvent struct {
+	Aids []int64
+	Uids []int64
+}
+
 type SaramaSyncProducer struct {
 	producer sarama.SyncProducer
 }
